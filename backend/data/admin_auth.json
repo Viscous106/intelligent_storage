@@ -1,0 +1,39 @@
+{
+  "admins": {
+    "admin": {
+      "admin_id": "admin_65c84905e82b7c5b",
+      "username": "admin",
+      "email": "admin@example.com",
+      "password_hash": "249cc4b3b4047b4a5ce08efe71f2292bba1ebfb45de62721de4ce5f24661881e",
+      "salt": "bb9cf5c773e470bb894166a071ca262187b2c365f7cc86760041dd9fb79a32d5",
+      "created_at": "2025-11-15T20:33:42.930682",
+      "is_active": true
+    }
+  },
+  "tokens": {
+    "bWQCd2KtORGp7BuOoKJHAjUjx5RKsIbqCHVta0V8HsI": {
+      "admin_id": "admin_65c84905e82b7c5b",
+      "expires_at": "2025-11-16T20:33:49.703600"
+    },
+    "n-u5OK-NbLmUhFj19N_Czz6Okut7QmoV8ArWebsUgVE": {
+      "admin_id": "admin_65c84905e82b7c5b",
+      "expires_at": "2025-11-16T20:34:51.716150"
+    },
+    "Od3zLSzOQhaw104e9RlwcJe_YJN2hiYG4XWE0ylOzXM": {
+      "admin_id": "admin_65c84905e82b7c5b",
+      "expires_at": "2025-11-16T20:57:18.385361"
+    },
+    "iL2o7FjOq38jtRGN5hW4da0NL6DjyftKJxKD0_78BKY": {
+      "admin_id": "admin_65c84905e82b7c5b",
+      "expires_at": "2025-11-16T20:59:31.070358"
+    },
+    "Nok6qvT2vUOw4zQfp2p-414qxli9SqMj-XsxDGG8hrM": {
+      "admin_id": "admin_65c84905e82b7c5b",
+      "expires_at": "2025-11-16T21:03:36.518538"
+    },
+    "0IUfXGNo0xIk7cZFGxjfgU4dDJ2N-0lUWj6mz-9ba6g": {
+      "admin_id": "admin_65c84905e82b7c5b",
+      "expires_at": "2025-11-16T21:17:08.782093"
+    }
+  }
+}
