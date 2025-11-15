@@ -1,0 +1,28 @@
+# Windows-specific requirements file
+# Use this on Windows instead of requirements_minimal.txt
+
+# Core Django
+Django>=5.0
+djangorestframework>=3.14
+django-cors-headers>=4.3
+
+# Databases
+psycopg2-binary
+pymongo
+pgvector
+
+# File handling - Windows compatible version
+python-magic-bin>=0.4.14
+Pillow
+PyPDF2
+python-docx
+python-pptx
+openpyxl
+beautifulsoup4
+
+# AI/ML
+requests
+
+# Utilities
+python-dotenv
+jsonschema

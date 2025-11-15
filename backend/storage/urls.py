@@ -11,6 +11,7 @@ from . import views
 router = DefaultRouter()
 router.register(r'media-files', views.MediaFileViewSet, basename='mediafile')
 router.register(r'json-stores', views.JSONDataViewSet, basename='jsonstore')
+router.register(r'file-search-stores', views.FileSearchStoreViewSet, basename='filesearchstore')
 
 # URL patterns
 urlpatterns = [
@@ -33,6 +34,10 @@ urlpatterns = [
     path('rag/query/', views.rag_query, name='rag-query'),
     path('rag/reindex-all/', views.reindex_all, name='reindex-all'),
     path('rag/stats/', views.rag_stats, name='rag-stats'),
+
+    # Gemini-style File Search Store endpoints
+    path('file-search/index/', views.index_file_to_store, name='file-search-index'),
+    path('file-search/search/', views.semantic_search_with_filters, name='file-search-search'),
 
     # Smart Upload System - Intelligent SQL/NoSQL routing with admin auth
     path('smart/', include('storage.smart_urls')),

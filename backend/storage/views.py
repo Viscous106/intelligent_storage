@@ -15,11 +15,18 @@ from rest_framework.decorators import api_view, action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import MediaFile, JSONDataStore, UploadBatch, DocumentChunk
+from .models import (
+    MediaFile, JSONDataStore, UploadBatch, DocumentChunk,
+    FileSearchStore, SearchQuery, RAGResponse
+)
 from .serializers import (
     MediaFileSerializer, JSONDataStoreSerializer,
     UploadBatchSerializer, FileUploadSerializer,
-    BatchFileUploadSerializer, JSONUploadSerializer
+    BatchFileUploadSerializer, JSONUploadSerializer,
+    FileSearchStoreSerializer, FileSearchStoreCreateSerializer,
+    DocumentChunkSerializer, SearchQuerySerializer, RAGResponseSerializer,
+    FileIndexRequestSerializer, SemanticSearchRequestSerializer,
+    RAGQueryRequestSerializer
 )
 from .file_detector import file_detector
 from .ai_analyzer import ai_analyzer
@@ -692,6 +699,360 @@ def rag_stats(request):
 
     except Exception as e:
         logger.error(f"Failed to get stats: {str(e)}")
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+# ===== Gemini-style File Search Store Views =====
+
+class FileSearchStoreViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for File Search Store management.
+    Provides Gemini-style document organization and storage management.
+    """
+    queryset = FileSearchStore.objects.all()
+    serializer_class = FileSearchStoreSerializer
+    lookup_field = 'store_id'
+
+    def create(self, request):
+        """Create a new file search store."""
+        serializer = FileSearchStoreCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Check if store with this name already exists
+            if FileSearchStore.objects.filter(name=serializer.validated_data['name']).exists():
+                return Response(
+                    {'error': 'Store with this name already exists'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Create the store
+            store = FileSearchStore.objects.create(**serializer.validated_data)
+
+            return Response(
+                FileSearchStoreSerializer(store).data,
+                status=status.HTTP_201_CREATED
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to create file search store: {str(e)}")
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=['GET'])
+    def files(self, request, store_id=None):
+        """Get all files in this store."""
+        try:
+            store = self.get_object()
+            files = MediaFile.objects.filter(file_search_store=store)
+            serializer = MediaFileSerializer(files, many=True)
+            return Response(serializer.data)
+        except FileSearchStore.DoesNotExist:
+            return Response(
+                {'error': 'Store not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    @action(detail=True, methods=['GET'])
+    def chunks(self, request, store_id=None):
+        """Get all chunks in this store."""
+        try:
+            store = self.get_object()
+            chunks = DocumentChunk.objects.filter(file_search_store=store)
+            serializer = DocumentChunkSerializer(chunks, many=True)
+            return Response(serializer.data)
+        except FileSearchStore.DoesNotExist:
+            return Response(
+                {'error': 'Store not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    @action(detail=True, methods=['GET'])
+    def stats(self, request, store_id=None):
+        """Get statistics for this store."""
+        try:
+            store = self.get_object()
+            return Response({
+                'store_id': str(store.store_id),
+                'name': store.name,
+                'display_name': store.display_name,
+                'total_files': store.total_files,
+                'total_chunks': store.total_chunks,
+                'storage_size_bytes': store.storage_size_bytes,
+                'embeddings_size_bytes': store.embeddings_size_bytes,
+                'total_size_bytes': store.total_size_bytes,
+                'storage_quota': store.storage_quota,
+                'storage_used_percentage': store.storage_used_percentage,
+                'is_quota_exceeded': store.is_quota_exceeded(),
+                'is_active': store.is_active,
+            })
+        except FileSearchStore.DoesNotExist:
+            return Response(
+                {'error': 'Store not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    @action(detail=True, methods=['DELETE'])
+    def force_delete(self, request, store_id=None):
+        """Force delete a store and all its associated data."""
+        try:
+            store = self.get_object()
+
+            # Delete associated chunks
+            DocumentChunk.objects.filter(file_search_store=store).delete()
+
+            # Update files to remove store reference
+            MediaFile.objects.filter(file_search_store=store).update(
+                file_search_store=None,
+                is_indexed=False
+            )
+
+            # Delete the store
+            store.delete()
+
+            return Response(
+                {'message': 'Store and associated data deleted successfully'},
+                status=status.HTTP_204_NO_CONTENT
+            )
+
+        except FileSearchStore.DoesNotExist:
+            return Response(
+                {'error': 'Store not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+
+@api_view(['POST'])
+def index_file_to_store(request):
+    """
+    Index a file into a File Search Store with custom chunking configuration.
+    Gemini-style file indexing with configurable parameters.
+    """
+    serializer = FileIndexRequestSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    file_id = serializer.validated_data['file_id']
+    store_name = serializer.validated_data.get('file_search_store_name')
+    chunking_strategy = serializer.validated_data.get('chunking_strategy')
+    max_tokens = serializer.validated_data.get('max_tokens_per_chunk')
+    max_overlap = serializer.validated_data.get('max_overlap_tokens')
+    custom_metadata = serializer.validated_data.get('custom_metadata', {})
+
+    try:
+        # Get the file
+        media_file = MediaFile.objects.get(id=file_id)
+
+        # Get or use default store
+        store = None
+        if store_name:
+            store = FileSearchStore.objects.get(name=store_name)
+            # Use store's configuration if not overridden
+            if not chunking_strategy:
+                chunking_strategy = store.chunking_strategy
+            if not max_tokens:
+                max_tokens = store.max_tokens_per_chunk
+            if not max_overlap:
+                max_overlap = store.max_overlap_tokens
+
+        # Check quota if store is specified
+        if store and store.is_quota_exceeded():
+            return Response(
+                {'error': 'Storage quota exceeded for this store'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Index the file using RAG service
+        from .chunking_service import ChunkingService
+        from .embedding_service import embedding_service
+
+        chunker = ChunkingService(
+            strategy=chunking_strategy or 'auto',
+            max_tokens_per_chunk=max_tokens or 512,
+            max_overlap_tokens=max_overlap or 50
+        )
+
+        # Extract text from file
+        text = chunker.extract_text_from_file(media_file.file_path)
+
+        if not text:
+            return Response(
+                {'error': 'Could not extract text from file'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Chunk the text
+        chunks = chunker.chunk_text(text, metadata=custom_metadata, strategy=chunking_strategy)
+
+        # Create document chunks with embeddings
+        created_chunks = []
+        for chunk_data in chunks:
+            # Generate embedding
+            embedding = embedding_service.generate_embedding(chunk_data['chunk_text'])
+
+            # Create chunk
+            chunk = DocumentChunk.objects.create(
+                media_file=media_file,
+                file_search_store=store,
+                chunk_index=chunk_data['chunk_index'],
+                chunk_text=chunk_data['chunk_text'],
+                chunk_size=chunk_data['chunk_size'],
+                token_count=chunk_data.get('token_count', 0),
+                embedding=embedding,
+                file_name=media_file.original_name,
+                file_type=media_file.detected_type,
+                metadata=chunk_data.get('metadata', {}),
+                chunking_strategy=chunk_data.get('chunking_strategy', 'auto'),
+                overlap_tokens=chunk_data.get('overlap_tokens', 0),
+                source_reference=f"{media_file.original_name}, chunk {chunk_data['chunk_index']}"
+            )
+            created_chunks.append(chunk)
+
+        # Update media file
+        media_file.is_indexed = True
+        media_file.indexed_at = datetime.now()
+        media_file.file_search_store = store
+        media_file.custom_metadata.update(custom_metadata)
+        media_file.save()
+
+        # Update store statistics
+        if store:
+            store.total_files = MediaFile.objects.filter(file_search_store=store).count()
+            store.total_chunks = DocumentChunk.objects.filter(file_search_store=store).count()
+            store.storage_size_bytes += media_file.file_size
+            # Estimate embeddings size (~3x data size)
+            store.embeddings_size_bytes += media_file.file_size * 3
+            store.save()
+
+        return Response({
+            'message': 'File indexed successfully',
+            'file_id': file_id,
+            'store': store.name if store else None,
+            'chunks_created': len(created_chunks),
+            'total_tokens': sum(c.token_count for c in created_chunks),
+            'chunking_strategy': chunking_strategy or 'auto'
+        }, status=status.HTTP_201_CREATED)
+
+    except MediaFile.DoesNotExist:
+        return Response(
+            {'error': 'File not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except FileSearchStore.DoesNotExist:
+        return Response(
+            {'error': 'File search store not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        logger.error(f"Failed to index file: {str(e)}")
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+def semantic_search_with_filters(request):
+    """
+    Perform semantic search with Gemini-style filtering.
+    Supports store filtering and metadata filtering.
+    """
+    serializer = SemanticSearchRequestSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    query = serializer.validated_data['query']
+    store_names = serializer.validated_data.get('file_search_store_names', [])
+    metadata_filter = serializer.validated_data.get('metadata_filter', {})
+    limit = serializer.validated_data.get('limit', 10)
+    include_citations = serializer.validated_data.get('include_citations', True)
+
+    try:
+        from .embedding_service import embedding_service
+        from django.db.models import Q
+
+        # Generate query embedding
+        query_embedding = embedding_service.generate_embedding(query)
+
+        # Build filter query
+        filter_q = Q()
+
+        # Filter by stores
+        if store_names:
+            stores = FileSearchStore.objects.filter(name__in=store_names)
+            filter_q &= Q(file_search_store__in=stores)
+
+        # Filter by metadata
+        if metadata_filter:
+            for key, value in metadata_filter.items():
+                filter_q &= Q(**{f'metadata__{key}': value})
+
+        # Search using pgvector
+        chunks = DocumentChunk.objects.filter(filter_q).order_by(
+            DocumentChunk.embedding.cosine_distance(query_embedding)
+        )[:limit]
+
+        # Build response
+        results = []
+        for chunk in chunks:
+            result = {
+                'chunk_id': chunk.id,
+                'chunk_text': chunk.chunk_text,
+                'file_name': chunk.file_name,
+                'file_type': chunk.file_type,
+                'chunk_index': chunk.chunk_index,
+                'metadata': chunk.metadata,
+            }
+
+            if include_citations:
+                result['citation'] = {
+                    'citation_id': str(chunk.citation_id),
+                    'source_reference': chunk.source_reference,
+                    'source_file': chunk.file_name,
+                    'chunk_index': chunk.chunk_index,
+                }
+
+            results.append(result)
+
+        # Save search query
+        search_query = SearchQuery.objects.create(
+            query_text=query,
+            query_embedding=query_embedding,
+            results_count=len(results),
+            metadata_filter=metadata_filter
+        )
+
+        if store_names:
+            stores = FileSearchStore.objects.filter(name__in=store_names)
+            search_query.file_search_stores.set(stores)
+
+        return Response({
+            'query': query,
+            'results_count': len(results),
+            'results': results,
+            'filters_applied': {
+                'stores': store_names,
+                'metadata': metadata_filter
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Search failed: {str(e)}")
         return Response(
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
