@@ -17,8 +17,7 @@ logger = logging.getLogger(__name__)
 
 @csrf_exempt
 @require_http_methods(["GET"])
-@require_admin
-def get_search_suggestions(request, admin_id):
+def get_search_suggestions(request):
     """
     Get intelligent search suggestions
 
@@ -38,6 +37,7 @@ def get_search_suggestions(request, admin_id):
 
         query = request.GET.get('q', '').strip()
         limit = int(request.GET.get('limit', 10))
+        admin_id = request.GET.get('admin_id', 'default')  # Use default for non-admin users
 
         suggestions = engine.get_suggestions(query, admin_id, limit)
 
@@ -58,8 +58,7 @@ def get_search_suggestions(request, admin_id):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@require_admin
-def record_search_query(request, admin_id):
+def record_search_query(request):
     """
     Record a search query for learning
 
@@ -79,6 +78,7 @@ def record_search_query(request, admin_id):
         results_count = data.get('results_count', 0)
         results = data.get('results', [])
         clicked_file = data.get('clicked_file')
+        admin_id = data.get('admin_id', 'default')  # Use default for non-admin users
 
         if not query:
             return JsonResponse({
@@ -109,8 +109,7 @@ def record_search_query(request, admin_id):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@require_admin
-def record_search_click(request, admin_id):
+def record_search_click(request):
     """
     Record when user clicks a search result
 
@@ -152,8 +151,7 @@ def record_search_click(request, admin_id):
 
 @csrf_exempt
 @require_http_methods(["GET"])
-@require_admin
-def get_search_analytics(request, admin_id):
+def get_search_analytics(request):
     """
     Get search analytics and statistics
 
@@ -164,6 +162,7 @@ def get_search_analytics(request, admin_id):
         engine = get_suggestion_engine()
 
         user_only = request.GET.get('user_only', 'false').lower() == 'true'
+        admin_id = request.GET.get('admin_id', 'default')
 
         if user_only:
             analytics = engine.get_analytics(admin_id)
@@ -185,8 +184,7 @@ def get_search_analytics(request, admin_id):
 
 @csrf_exempt
 @require_http_methods(["GET"])
-@require_admin
-def get_trending_searches(request, admin_id):
+def get_trending_searches(request):
     """
     Get trending search queries (last 24 hours)
 
@@ -232,13 +230,13 @@ def get_trending_searches(request, admin_id):
 
 @csrf_exempt
 @require_http_methods(["DELETE"])
-@require_admin
-def clear_search_history(request, admin_id):
+def clear_search_history(request):
     """
     Clear user's search history
     """
     try:
         engine = get_suggestion_engine()
+        admin_id = request.GET.get('admin_id', 'default')
 
         engine.clear_user_history(admin_id)
 
@@ -257,8 +255,7 @@ def clear_search_history(request, admin_id):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@require_admin
-def save_search_data(request, admin_id):
+def save_search_data(request):
     """
     Manually trigger save of search data
     (normally auto-saved periodically)

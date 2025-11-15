@@ -7,8 +7,41 @@
 const API_BASE = 'http://localhost:8000/api';
 
 // ============================================
+// API Error Handling Wrapper
+// ============================================
+
+/**
+ * Safe API call wrapper that handles errors gracefully
+ * @param {Promise<Response>} fetchPromise - The fetch promise
+ * @param {*} fallbackValue - Value to return on error
+ * @returns {Promise} Parsed JSON or fallback value
+ */
+async function safeApiCall(fetchPromise, fallbackValue = null) {
+    try {
+        const response = await fetchPromise;
+        if (!response.ok) {
+            console.error(`API Error: ${response.status} ${response.statusText}`);
+            return fallbackValue;
+        }
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('API call failed:', error);
+        return fallbackValue;
+    }
+}
+
+// ============================================
 // Utility Functions
 // ============================================
+
+function formatFileSize(bytes) {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+}
 
 function showLoading() {
     document.getElementById('loadingOverlay').style.display = 'flex';
@@ -240,8 +273,10 @@ function displayBatchResults(data) {
     const container = document.getElementById('uploadResults');
     const content = document.getElementById('uploadResultsContent');
 
-    const successResults = data.results.filter(r => r.status === 'success');
-    const failedResults = data.results.filter(r => r.status === 'failed');
+    // Defensive check: ensure results array exists
+    const results = data.results || [];
+    const successResults = results.filter(r => r.status === 'success');
+    const failedResults = results.filter(r => r.status === 'failed');
 
     content.innerHTML = `
         <div class="grid-2">
@@ -315,15 +350,15 @@ document.getElementById('semanticSearchBtn').addEventListener('click', async () 
 
     try {
         showLoading();
-        const response = await fetch(`${API_BASE}/rag/search/`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                query,
-                file_type: fileType || null,
-                limit
-            })
-        });
+
+        // Build search query with optional type filter
+        let searchQuery = query;
+        if (fileType) {
+            searchQuery = `${query} @type:${fileType}`;
+        }
+
+        // Use fuzzy search API (works immediately, no indexing required)
+        const response = await fetch(`http://localhost:8000/files/api/search/fuzzy/?q=${encodeURIComponent(searchQuery)}&limit=${limit}`);
 
         const data = await response.json();
         hideLoading();
@@ -345,28 +380,38 @@ function displaySearchResults(data) {
     const content = document.getElementById('searchResultsContent');
     const count = document.getElementById('searchCount');
 
-    count.textContent = `${data.results_count} results`;
+    // Defensive check: ensure results array exists
+    const results = data.results || [];
+    count.textContent = `${data.results_count || 0} results`;
 
-    if (!data.results.length) {
+    if (!results.length) {
         content.innerHTML = `
             <div class="text-center" style="padding: var(--spacing-2xl);">
-                <p class="result-text">No results found. Try a different query or index more documents.</p>
+                <p class="result-text">No results found. Try a different query or upload some files first.</p>
             </div>
         `;
     } else {
-        content.innerHTML = data.results.map((result, index) => `
+        content.innerHTML = results.map((result, index) => `
             <div class="search-result-item">
                 <div class="result-header">
-                    <span class="result-filename">${result.file_name}</span>
-                    <span class="result-type">${result.file_type}</span>
+                    <span class="result-filename">${result.name || result.file_name || 'Unknown'}</span>
+                    <span class="result-type">${result.type || result.file_type || 'unknown'}</span>
                 </div>
-                <p class="result-text">${result.chunk_text}</p>
-                <div style="display: flex; gap: var(--spacing-md); margin-top: var(--spacing-sm);">
-                    <span class="badge badge-secondary">Chunk ${result.chunk_index + 1}</span>
-                    ${result.media_file_id ? `
-                        <button class="btn-text" onclick="indexDocument(${result.media_file_id})">
-                            Reindex
-                        </button>
+                <p class="result-text">${result.description || result.chunk_text || 'No description available'}</p>
+                <div style="display: flex; gap: var(--spacing-md); margin-top: var(--spacing-sm); flex-wrap: wrap;">
+                    ${result.search_score ? `<span class="badge">Score: ${Math.round(result.search_score)}</span>` : ''}
+                    ${result.match_type ? `<span class="badge badge-secondary">${result.match_type} match</span>` : ''}
+                    ${result.tags && result.tags.length ? result.tags.slice(0, 3).map(tag =>
+                        `<span class="badge badge-secondary">${tag}</span>`
+                    ).join('') : ''}
+                    <span class="badge">${formatFileSize(result.size)}</span>
+                    ${result.id ? `
+                        <a href="http://localhost:8000/files/api/preview/${result.id}/" target="_blank" class="btn-text">
+                            Preview
+                        </a>
+                        <a href="http://localhost:8000/files/api/download/${result.id}/" class="btn-text">
+                            Download
+                        </a>
                     ` : ''}
                 </div>
             </div>
@@ -418,12 +463,15 @@ function displayRAGAnswer(data) {
     const content = document.getElementById('ragAnswerContent');
     const sources = document.getElementById('ragSources');
 
-    content.innerHTML = `<p>${data.answer}</p>`;
+    // Defensive check: ensure answer exists
+    content.innerHTML = `<p>${data.answer || 'No answer generated'}</p>`;
 
-    if (data.sources && data.sources.length) {
+    // Defensive check: ensure sources array exists
+    const sourcesArray = data.sources || [];
+    if (sourcesArray.length) {
         sources.innerHTML = `
             <h4 class="mb-1">Sources:</h4>
-            ${data.sources.map((source, index) => `
+            ${sourcesArray.map((source, index) => `
                 <div class="source-item">
                     ${index + 1}. ${source.file_name} (Chunk ${source.chunk_index + 1})
                 </div>
@@ -649,9 +697,10 @@ document.getElementById('loadDocumentsBtn').addEventListener('click', async () =
         const data = await response.json();
         hideLoading();
 
-        if (data.documents && data.documents.length > 0) {
-            displayDocuments(data.documents);
-        } else {
+        // Always call displayDocuments, it handles empty arrays
+        displayDocuments(data.documents || []);
+
+        if (!data.documents || data.documents.length === 0) {
             showToast('No Documents', 'No JSON documents found', 'info');
         }
     } catch (error) {
@@ -665,7 +714,16 @@ function displayDocuments(documents) {
     const grid = document.getElementById('documentsGrid');
     const list = document.getElementById('documentsList');
 
-    grid.innerHTML = documents.map(doc => `
+    // Defensive check: ensure documents array exists
+    const docs = documents || [];
+
+    if (!docs.length) {
+        grid.innerHTML = '<div class="text-center" style="padding: var(--spacing-2xl);"><p class="result-text">No documents found</p></div>';
+        list.style.display = 'block';
+        return;
+    }
+
+    grid.innerHTML = docs.map(doc => `
         <div class="document-card" onclick="openDocumentViewer('${doc.doc_id}')">
             <div class="document-header">
                 <span class="badge">${doc.database_type?.toUpperCase() || 'UNKNOWN'}</span>
@@ -837,10 +895,23 @@ async function loadStats() {
             fetch(`${API_BASE}/rag/stats/`)
         ]);
 
-        const filesData = await filesResponse.json();
-        const ragData = await ragResponse.json();
+        // Defensive parsing with fallback
+        let filesData = {};
+        let ragData = {};
 
-        // Update hero stats
+        try {
+            filesData = await filesResponse.json();
+        } catch (e) {
+            console.error('Failed to parse files stats:', e);
+        }
+
+        try {
+            ragData = await ragResponse.json();
+        } catch (e) {
+            console.error('Failed to parse RAG stats:', e);
+        }
+
+        // Update hero stats with safe defaults
         document.getElementById('totalFiles').textContent = filesData.total_files || 0;
         document.getElementById('totalChunks').textContent = ragData.total_chunks || 0;
         document.getElementById('indexedFiles').textContent = ragData.indexed_files || 0;
@@ -851,6 +922,13 @@ async function loadStats() {
         document.getElementById('analyticsIndexed').textContent = ragData.indexed_files || 0;
     } catch (error) {
         console.error('Failed to load stats:', error);
+        // Set defaults on error
+        document.getElementById('totalFiles').textContent = 0;
+        document.getElementById('totalChunks').textContent = 0;
+        document.getElementById('indexedFiles').textContent = 0;
+        document.getElementById('analyticsFiles').textContent = 0;
+        document.getElementById('analyticsChunks').textContent = 0;
+        document.getElementById('analyticsIndexed').textContent = 0;
     }
 }
 
@@ -880,7 +958,8 @@ document.getElementById('healthCheckBtn').addEventListener('click', async () => 
         const data = await response.json();
         hideLoading();
 
-        const services = data.services;
+        // Defensive check: ensure services object exists
+        const services = data.services || {};
         const allHealthy = Object.values(services).every(v => v === true);
 
         let message = `

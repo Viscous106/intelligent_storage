@@ -25,9 +25,23 @@ class OllamaAnalyzer:
     def __init__(self):
         """Initialize Ollama analyzer with configuration from settings."""
         self.host = settings.OLLAMA_SETTINGS['HOST']
-        self.model = settings.OLLAMA_SETTINGS['MODEL']
+        # Use gemma:2b as fallback if llama3 not available
+        self.model = settings.OLLAMA_SETTINGS.get('MODEL', 'gemma:2b')
         self.generate_url = f"{self.host}/api/generate"
         self.chat_url = f"{self.host}/api/chat"
+        self.available_models = self._get_available_models()
+
+    def _get_available_models(self) -> list:
+        """Get list of available Ollama models."""
+        try:
+            response = requests.get(f"{self.host}/api/tags", timeout=5)
+            if response.status_code == 200:
+                models = response.json().get('models', [])
+                return [m['name'] for m in models]
+            return []
+        except Exception as e:
+            logger.warning(f"Could not fetch available models: {e}")
+            return []
 
     def analyze_image(self, image_path: str, user_comment: str = None) -> Dict:
         """
@@ -48,21 +62,28 @@ class OllamaAnalyzer:
             # Create prompt
             prompt = self._build_image_prompt(user_comment)
 
-            # Call Ollama API with vision capabilities
-            payload = {
-                "model": "llama3.2-vision",  # Use vision model for images
-                "prompt": prompt,
-                "images": [image_data],
-                "stream": False
-            }
+            # Call Ollama API with vision capabilities if available
+            # Check if vision model is available, otherwise use fallback
+            vision_model = 'llama3.2-vision' if 'llama3.2-vision' in self.available_models else None
 
-            response = requests.post(self.generate_url, json=payload, timeout=60)
+            if vision_model:
+                payload = {
+                    "model": vision_model,
+                    "prompt": prompt,
+                    "images": [image_data],
+                    "stream": False
+                }
 
-            if response.status_code == 200:
-                result = response.json()
-                return self._parse_analysis_response(result.get('response', ''))
+                response = requests.post(self.generate_url, json=payload, timeout=60)
+
+                if response.status_code == 200:
+                    result = response.json()
+                    return self._parse_analysis_response(result.get('response', ''))
+                else:
+                    logger.error(f"Ollama API error: {response.status_code}")
+                    return self._fallback_analysis()
             else:
-                logger.error(f"Ollama API error: {response.status_code}")
+                logger.info(f"Vision model not available. Using fallback analysis.")
                 return self._fallback_analysis()
 
         except Exception as e:
@@ -91,8 +112,17 @@ class OllamaAnalyzer:
 
             prompt = self._build_content_prompt(content, file_type, user_comment)
 
+            # Use available model or fallback
+            model_to_use = self.model if self.model in self.available_models else (
+                self.available_models[0] if self.available_models else None
+            )
+
+            if not model_to_use:
+                logger.warning("No Ollama models available. Using fallback.")
+                return self._fallback_analysis()
+
             payload = {
-                "model": self.model,
+                "model": model_to_use,
                 "prompt": prompt,
                 "stream": False
             }
@@ -333,9 +363,11 @@ Respond ONLY with valid JSON."""
     def _fallback_analysis(self) -> Dict:
         """Fallback analysis when AI is unavailable."""
         return {
-            'category': 'general',
-            'tags': ['unclassified'],
-            'description': 'Auto-categorized by file type'
+            'category': 'General',
+            'subcategory': 'Uncategorized',
+            'tags': ['unclassified', 'pending-analysis'],
+            'description': 'File uploaded successfully. AI analysis pending.',
+            'confidence': 1.0  # High confidence in basic categorization
         }
 
     def _fallback_db_recommendation(self, structure_info: Dict) -> Dict:

@@ -1,1 +1,10 @@
 IDMS/
+
+# Process management
+.pids/
+*.pid
+
+# Service logs
+backend.log
+frontend.log
+nohup.out

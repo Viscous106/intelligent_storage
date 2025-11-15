@@ -433,28 +433,36 @@
                 const response = await fetch('/files/api/stats/');
                 const data = await response.json();
 
+                // Defensive checks with fallbacks
+                const total = data.total || { count: 0, size_mb: 0 };
+                const byType = data.by_type || {};
+
                 // Update total stats
-                document.getElementById('total-files').textContent = data.total.count;
-                document.getElementById('total-size').textContent = data.total.size_mb.toFixed(2) + ' MB';
+                document.getElementById('total-files').textContent = total.count || 0;
+                document.getElementById('total-size').textContent = (total.size_mb || 0).toFixed(2) + ' MB';
 
                 // Update category counts
-                Object.keys(data.by_type).forEach(type => {
+                Object.keys(byType).forEach(type => {
                     const countEl = document.getElementById(`count-${type}`);
-                    if (countEl) {
-                        countEl.textContent = data.by_type[type].count;
+                    if (countEl && byType[type]) {
+                        countEl.textContent = byType[type].count || 0;
                     }
                 });
 
                 // Update "all" count
-                document.getElementById('count-all').textContent = data.total.count;
+                document.getElementById('count-all').textContent = total.count || 0;
 
                 // Update trash count
                 if (data.trash !== undefined) {
-                    document.getElementById('count-trash').textContent = data.trash;
+                    document.getElementById('count-trash').textContent = data.trash || 0;
                 }
 
             } catch (error) {
                 console.error('Error loading stats:', error);
+                // Set safe defaults on error
+                document.getElementById('total-files').textContent = 0;
+                document.getElementById('total-size').textContent = '0.00 MB';
+                document.getElementById('count-all').textContent = 0;
             }
         }
 
@@ -467,19 +475,27 @@
                 const response = await fetch(`/files/api/browse/?category=${category}&limit=100`);
                 const data = await response.json();
 
-                allFiles = data.files;
+                // Defensive check: ensure files array exists
+                allFiles = data.files || [];
                 displayFiles(allFiles);
                 document.getElementById('current-category').textContent = category.charAt(0).toUpperCase() + category.slice(1);
 
             } catch (error) {
                 console.error('Error loading files:', error);
                 container.innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>Error loading files</p></div>';
+                allFiles = [];  // Reset to empty array on error
             }
         }
 
         // Display files
         function displayFiles(files) {
             const container = document.getElementById('files-container');
+
+            // Defensive check: ensure files is an array
+            if (!files || !Array.isArray(files)) {
+                console.error('displayFiles called with invalid data:', files);
+                files = [];
+            }
 
             if (files.length === 0) {
                 container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>No files in this category</p></div>';
@@ -581,8 +597,10 @@
                         }, 300);
                     }
 
-                    // Remove from allFiles array
-                    allFiles = allFiles.filter(f => f.id !== fileId);
+                    // Remove from allFiles array (with defensive check)
+                    if (Array.isArray(allFiles)) {
+                        allFiles = allFiles.filter(f => f && f.id !== fileId);
+                    }
 
                     // Reload stats
                     loadStats();
@@ -625,8 +643,10 @@
                         }, 300);
                     }
 
-                    // Remove from allFiles array
-                    allFiles = allFiles.filter(f => f.id !== fileId);
+                    // Remove from allFiles array (with defensive check)
+                    if (Array.isArray(allFiles)) {
+                        allFiles = allFiles.filter(f => f && f.id !== fileId);
+                    }
 
                     // Reload stats
                     loadStats();
@@ -665,8 +685,10 @@
                         }, 300);
                     }
 
-                    // Remove from allFiles array
-                    allFiles = allFiles.filter(f => f.id !== fileId);
+                    // Remove from allFiles array (with defensive check)
+                    if (Array.isArray(allFiles)) {
+                        allFiles = allFiles.filter(f => f && f.id !== fileId);
+                    }
 
                     // Reload stats
                     loadStats();
@@ -843,6 +865,14 @@
                 return;
             }
 
+            // Defensive check: ensure allFiles is an array
+            if (!allFiles || !Array.isArray(allFiles)) {
+                console.error('allFiles is not an array:', allFiles);
+                allFiles = [];
+                displayFiles([]);
+                return;
+            }
+
             // Semantic search with scoring
             const scoredPromises = allFiles.map(async file => {
                 const semanticResult = semanticMatch(file, query);
@@ -869,9 +899,12 @@
             });
 
             const scored = await Promise.all(scoredPromises);
-            const filtered = scored
-                .filter(item => item.match)
-                .sort((a, b) => b.score - a.score)
+
+            // Defensive check: ensure scored is an array
+            const safeScored = Array.isArray(scored) ? scored : [];
+            const filtered = safeScored
+                .filter(item => item && item.match)
+                .sort((a, b) => (b.score || 0) - (a.score || 0))
                 .map(item => item.file);
 
             displayFiles(filtered);

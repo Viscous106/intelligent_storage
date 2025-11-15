@@ -57,53 +57,65 @@ class AdaptiveTrieFuzzySearch:
     def _build_semantic_map(self) -> Dict[str, List[str]]:
         """Build semantic keyword mappings for intelligent search."""
         return {
-            # Images - map to 'image' type
-            'photo': ['image'],
-            'photos': ['image'],
-            'picture': ['image'],
-            'pictures': ['image'],
-            'img': ['image'],
-            'screenshot': ['image'],
-            'screenshots': ['image'],
+            # Images - map to 'images' type (PLURAL - matches database)
+            'photo': ['images'],
+            'photos': ['images'],
+            'picture': ['images'],
+            'pictures': ['images'],
+            'img': ['images'],
+            'image': ['images'],
+            'images': ['images'],
+            'screenshot': ['images'],
+            'screenshots': ['images'],
+            'pic': ['images'],
+            'pics': ['images'],
 
-            # Videos - map to 'video' type
-            'video': ['video'],
-            'videos': ['video'],
-            'movie': ['video'],
-            'movies': ['video'],
-            'film': ['video'],
-            'clip': ['video'],
-            'clips': ['video'],
+            # Videos - map to 'videos' type (PLURAL - matches database)
+            'video': ['videos'],
+            'videos': ['videos'],
+            'movie': ['videos'],
+            'movies': ['videos'],
+            'film': ['videos'],
+            'films': ['videos'],
+            'clip': ['videos'],
+            'clips': ['videos'],
 
-            # Audio - map to 'audio' type
+            # Audio - map to 'audio' type (matches database)
             'audio': ['audio'],
             'music': ['audio'],
             'song': ['audio'],
             'songs': ['audio'],
             'track': ['audio'],
+            'tracks': ['audio'],
             'podcast': ['audio'],
             'podcasts': ['audio'],
             'sound': ['audio'],
+            'sounds': ['audio'],
 
-            # Documents - map to 'document' type
-            'document': ['document'],
-            'documents': ['document'],
-            'doc': ['document'],
-            'docs': ['document'],
-            'pdf': ['document'],
-            'pdfs': ['document'],
-            'text': ['document'],
-            'report': ['document'],
-            'reports': ['document'],
-            'spreadsheet': ['document'],
-            'spreadsheets': ['document'],
-            'presentation': ['document'],
-            'presentations': ['document'],
+            # Documents - map to 'documents' type (PLURAL - matches database)
+            'document': ['documents'],
+            'documents': ['documents'],
+            'doc': ['documents'],
+            'docs': ['documents'],
+            'pdf': ['documents'],
+            'pdfs': ['documents'],
+            'text': ['documents'],
+            'txt': ['documents'],
+            'report': ['documents'],
+            'reports': ['documents'],
+            'spreadsheet': ['documents'],
+            'spreadsheets': ['documents'],
+            'presentation': ['documents'],
+            'presentations': ['documents'],
+            'file': ['documents'],
+            'files': ['documents'],
 
-            # Code - map to 'code' type
+            # Code - map to 'code' type (matches database)
             'code': ['code'],
             'script': ['code'],
             'scripts': ['code'],
+            'program': ['code'],
+            'programs': ['code'],
             'program': ['code'],
             'source': ['code'],
 
@@ -149,14 +161,29 @@ class AdaptiveTrieFuzzySearch:
         file_id = file_data['id']
         self.files_index[file_id] = file_data
 
-        # Index filename
+        # Index filename with better word extraction
         filename = file_data.get('name', '')
-        words = re.findall(r'\w+', filename.lower())
-        for word in words:
-            self.insert_word(word, file_id)
+        filename_lower = filename.lower()
 
-        # Index full filename
-        self.insert_word(filename.lower().replace(' ', ''), file_id)
+        # Split on multiple delimiters: spaces, underscores, hyphens, dots
+        # This makes "My_girl.mp4" → ["my", "girl", "mp4"]
+        words = re.split(r'[_\-\s\.]+', filename_lower)
+        words = [w for w in words if w]  # Remove empty strings
+
+        for word in words:
+            if len(word) > 0:
+                self.insert_word(word, file_id)
+
+        # Also extract alphanumeric sequences (fallback)
+        alpha_words = re.findall(r'[a-z0-9]+', filename_lower)
+        for word in alpha_words:
+            if len(word) > 0 and word not in words:
+                self.insert_word(word, file_id)
+
+        # Index full filename (without special chars)
+        clean_filename = re.sub(r'[^a-z0-9]', '', filename_lower)
+        if clean_filename:
+            self.insert_word(clean_filename, file_id)
 
         # Index file type
         if file_data.get('type'):
@@ -164,7 +191,9 @@ class AdaptiveTrieFuzzySearch:
 
         # Index extension
         if file_data.get('extension'):
-            self.insert_word(file_data['extension'].lower().replace('.', ''), file_id)
+            ext = file_data['extension'].lower().replace('.', '')
+            if ext:
+                self.insert_word(ext, file_id)
 
         # Index tags
         for tag in file_data.get('tags', []):
@@ -354,9 +383,29 @@ class AdaptiveTrieFuzzySearch:
         if not file_data:
             return False
 
-        # Type filter
-        if filters['type'] and file_data.get('type', '').lower() != filters['type']:
-            return False
+        # Type filter - normalize both sides for comparison
+        if filters['type']:
+            file_type = file_data.get('type', '').lower()
+            filter_type = filters['type'].lower()
+
+            # Handle both singular and plural forms
+            # Convert both to a normalized form for comparison
+            type_normalizations = {
+                'image': 'images', 'images': 'images',
+                'video': 'videos', 'videos': 'videos',
+                'document': 'documents', 'documents': 'documents',
+                'audio': 'audio',  # audio is same in singular/plural
+                'code': 'code',
+                'compressed': 'compressed',
+                'program': 'programs', 'programs': 'programs',
+                'other': 'others', 'others': 'others'
+            }
+
+            normalized_file_type = type_normalizations.get(file_type, file_type)
+            normalized_filter_type = type_normalizations.get(filter_type, filter_type)
+
+            if normalized_file_type != normalized_filter_type:
+                return False
 
         # Extension filter
         if filters['extension']:

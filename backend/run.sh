@@ -2,6 +2,10 @@
 # Helper script to run Django commands with the virtual environment
 # Usage: ./run.sh [command]
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
+
 VENV_PYTHON="./venv/bin/python"
 
 # Colors for output

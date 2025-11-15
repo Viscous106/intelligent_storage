@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from pgvector.django import VectorField
@@ -130,7 +131,7 @@ class FileSearchStore(models.Model):
     """
     # Owner
     user = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='file_search_stores',
         null=True,
@@ -223,7 +224,7 @@ class MediaFile(models.Model):
     """
     # Owner
     user = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='media_files',
         null=True,

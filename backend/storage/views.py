@@ -437,16 +437,43 @@ class JSONDataUploadView(APIView):
                     'document_structure': storage_result.get('mongo_schema'),
                 }
 
-            return Response(
-                {
-                    'success': True,
-                    'storage': JSONDataStoreSerializer(json_store).data,
-                    'ai_analysis': ai_result,
-                    'generated_schema': schema_display,
-                    'message': f"Data stored in {db_type} database"
-                },
-                status=status.HTTP_201_CREATED
-            )
+            # Prepare metrics
+            metrics = {
+                'unique_fields': len(ai_result.get('suggested_schema', {}).get('fields', {})),
+                'max_depth': json_store.structure_depth,
+                'total_objects': record_count
+            }
+
+            # Normalize confidence to 0-1 range (frontend multiplies by 100 for display)
+            confidence_value = ai_result.get('confidence', 0)
+            if confidence_value > 1:  # If it's 0-100 range, convert to 0-1
+                confidence_value = confidence_value / 100.0
+
+            # Ensure reasons is an array (split string if needed)
+            reasoning = ai_result.get('reasoning', [])
+            if isinstance(reasoning, str):
+                # If it's a string, split by semicolon or just wrap in array
+                reasons_array = [r.strip() for r in reasoning.split(';')] if ';' in reasoning else [reasoning]
+            else:
+                reasons_array = reasoning if isinstance(reasoning, list) else []
+
+            # Prepare response in the format frontend expects
+            response_data = {
+                'success': True,
+                'message': f"Data stored in {db_type} database",
+                'doc_id': str(json_store.id),  # Document ID for tracking
+                'database_type': db_type,
+                'confidence': confidence_value,  # 0-1 float (frontend will multiply by 100)
+                'reasons': reasons_array,  # Array of reasons
+                'metrics': metrics,
+                'schema': schema_display,
+                # Include storage info for compatibility
+                'storage': JSONDataStoreSerializer(json_store).data,
+                'ai_analysis': ai_result,
+                'generated_schema': schema_display,
+            }
+
+            return Response(response_data, status=status.HTTP_201_CREATED)
 
         except Exception as e:
             logger.error(f"JSON upload failed: {str(e)}")
