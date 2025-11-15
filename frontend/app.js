@@ -507,74 +507,323 @@ document.getElementById('jsonUploadBtn').addEventListener('click', async () => {
     }
 });
 
+function formatSchemaFields(fields, prefix = '') {
+    if (!fields) return '';
+
+    let html = '<ul style="margin-left: var(--spacing-lg); margin-top: var(--spacing-sm);">';
+    for (const [key, value] of Object.entries(fields)) {
+        const fullKey = prefix ? `${prefix}.${key}` : key;
+        if (value.type === 'object' && value.fields) {
+            html += `<li><code>${key}</code>: object`;
+            html += formatSchemaFields(value.fields, fullKey);
+            html += '</li>';
+        } else if (value.type === 'array<object>' && value.item_schema) {
+            html += `<li><code>${key}</code>: array of objects`;
+            html += formatSchemaFields(value.item_schema, `${fullKey}[]`);
+            html += '</li>';
+        } else {
+            html += `<li><code>${key}</code>: ${value.type}`;
+            if (value.sample) {
+                html += ` <span style="color: var(--text-secondary); font-size: 0.9em;">(e.g., "${value.sample}")</span>`;
+            }
+            html += '</li>';
+        }
+    }
+    html += '</ul>';
+    return html;
+}
+
 function displayJSONResults(data) {
     const container = document.getElementById('jsonResults');
     const content = document.getElementById('jsonResultsContent');
 
-    const schema = data.generated_schema;
+    const schema = data.schema || {};
+    const dbType = data.database_type || 'unknown';
+    const isSQL = dbType === 'sql';
+
     let schemaDisplay = '';
 
-    if (schema.type === 'SQL') {
+    if (schema.type === 'array' && schema.item_schema) {
         schemaDisplay = `
             <div class="card">
-                <h4 class="mb-1">📊 SQL Schema</h4>
+                <h4 class="mb-1">${isSQL ? '📊 SQL' : '📄 NoSQL'} Schema - Array</h4>
                 <div class="mb-2">
-                    <strong>Table:</strong> ${schema.table_name}
+                    <strong>Type:</strong> Array with ${schema.item_count || 0} items
                 </div>
-                <pre class="code-textarea" style="background: var(--bg-primary); padding: var(--spacing-md); border-radius: var(--border-radius-md); overflow-x: auto;">${schema.create_statement}</pre>
                 <div class="mt-2">
-                    <strong>Columns:</strong>
-                    <ul style="margin-left: var(--spacing-lg); margin-top: var(--spacing-sm);">
-                        ${Object.entries(schema.columns).map(([col, type]) =>
-                            `<li><code>${col}</code>: ${type}</li>`
-                        ).join('')}
-                    </ul>
+                    <strong>Item Structure:</strong>
+                    ${formatSchemaFields(schema.item_schema)}
+                </div>
+            </div>
+        `;
+    } else if (schema.type === 'object' && schema.fields) {
+        schemaDisplay = `
+            <div class="card">
+                <h4 class="mb-1">${isSQL ? '📊 SQL' : '📄 NoSQL'} Schema - Object</h4>
+                <div class="mt-2">
+                    <strong>Fields:</strong>
+                    ${formatSchemaFields(schema.fields)}
                 </div>
             </div>
         `;
     } else {
         schemaDisplay = `
             <div class="card">
-                <h4 class="mb-1">📄 MongoDB Schema</h4>
+                <h4 class="mb-1">${isSQL ? '📊 SQL' : '📄 NoSQL'} Schema</h4>
                 <div class="mb-2">
-                    <strong>Collection:</strong> ${schema.collection_name}
+                    <strong>Type:</strong> ${schema.type || 'unknown'}
                 </div>
-                <pre class="code-textarea" style="background: var(--bg-primary); padding: var(--spacing-md); border-radius: var(--border-radius-md);">${schema.document_structure}</pre>
             </div>
         `;
     }
 
+    const reasons = (data.reasons || []).map(r => `<li>${r}</li>`).join('');
+    const confidence = Math.round((data.confidence || 0) * 100);
+
     content.innerHTML = `
-        <div class="card" style="background: ${data.ai_analysis.database_type === 'SQL' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(139, 92, 246, 0.1)'};">
+        <div class="card" style="background: ${isSQL ? 'rgba(99, 102, 241, 0.1)' : 'rgba(139, 92, 246, 0.1)'};">
             <div class="card-header">
-                <h3>🤖 AI Decision</h3>
-                <span class="badge">${data.ai_analysis.database_type}</span>
+                <h3>🤖 Intelligent Routing Decision</h3>
+                <span class="badge">${dbType.toUpperCase()}</span>
             </div>
             <div class="mb-2">
-                <strong>Confidence:</strong> ${data.ai_analysis.confidence}%
+                <strong>Database:</strong> ${isSQL ? 'PostgreSQL (SQL)' : 'MongoDB (NoSQL)'}
             </div>
             <div class="mb-2">
-                <strong>Reasoning:</strong> ${data.ai_analysis.reasoning}
+                <strong>Confidence:</strong> ${confidence}%
             </div>
+            <div class="mb-2">
+                <strong>Document ID:</strong> <code>${data.doc_id}</code>
+            </div>
+            <div class="mb-2">
+                <strong>Analysis Reasons:</strong>
+                <ul style="margin-left: var(--spacing-lg); margin-top: var(--spacing-sm);">
+                    ${reasons}
+                </ul>
+            </div>
+            ${data.metrics ? `
             <div class="grid-3 mt-2">
                 <div class="stat-item">
-                    <div class="stat-label">Records Stored</div>
-                    <div class="stat-value" style="font-size: var(--font-size-xl);">${data.storage.record_count}</div>
+                    <div class="stat-label">Unique Fields</div>
+                    <div class="stat-value" style="font-size: var(--font-size-xl);">${data.metrics.unique_fields || 0}</div>
                 </div>
                 <div class="stat-item">
                     <div class="stat-label">Nesting Depth</div>
-                    <div class="stat-value" style="font-size: var(--font-size-xl);">${data.storage.structure_depth || 0}</div>
+                    <div class="stat-value" style="font-size: var(--font-size-xl);">${data.metrics.max_depth || 0}</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-label">Nested Objects</div>
-                    <div class="stat-value" style="font-size: var(--font-size-xl);">${data.storage.has_nested_objects ? 'Yes' : 'No'}</div>
+                    <div class="stat-label">Total Objects</div>
+                    <div class="stat-value" style="font-size: var(--font-size-xl);">${data.metrics.total_objects || 0}</div>
                 </div>
             </div>
+            ` : ''}
         </div>
         ${schemaDisplay}
+        <div class="card mt-2">
+            <h4 class="mb-1">💡 How to Access Your Data</h4>
+            <p>You can query this data using:</p>
+            <ul style="margin-left: var(--spacing-lg);">
+                <li>Document ID: <code>${data.doc_id}</code></li>
+                <li>API Endpoint: <code>/api/smart/retrieve/json/${data.doc_id}</code></li>
+                <li>Query API: <code>/api/smart/query/json</code> with filters</li>
+            </ul>
+        </div>
     `;
 
     container.style.display = 'block';
+}
+
+// ============================================
+// File Browser & Range Selection
+// ============================================
+
+let currentDocId = null;
+
+document.getElementById('loadDocumentsBtn').addEventListener('click', async () => {
+    try {
+        showLoading();
+        const response = await fetch(`${API_BASE}/smart/list/json`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+
+        const data = await response.json();
+        hideLoading();
+
+        if (data.documents && data.documents.length > 0) {
+            displayDocuments(data.documents);
+        } else {
+            showToast('No Documents', 'No JSON documents found', 'info');
+        }
+    } catch (error) {
+        hideLoading();
+        showToast('Error', 'Failed to load documents', 'error');
+        console.error(error);
+    }
+});
+
+function displayDocuments(documents) {
+    const grid = document.getElementById('documentsGrid');
+    const list = document.getElementById('documentsList');
+
+    grid.innerHTML = documents.map(doc => `
+        <div class="document-card" onclick="openDocumentViewer('${doc.doc_id}')">
+            <div class="document-header">
+                <span class="badge">${doc.database_type?.toUpperCase() || 'UNKNOWN'}</span>
+                <span class="document-date">${new Date(doc.created_at).toLocaleDateString()}</span>
+            </div>
+            <div class="document-body">
+                <div class="document-id">${doc.doc_id}</div>
+                ${doc.metadata?.schema_info ? `
+                    <div class="document-meta">
+                        <small>📊 Fields: ${doc.metadata.schema_info.estimated_objects || 'N/A'}</small>
+                        <small>📏 Depth: ${doc.metadata.schema_info.max_nesting_depth || 'N/A'}</small>
+                    </div>
+                ` : ''}
+            </div>
+            <div class="document-footer">
+                <button class="btn-text" onclick="event.stopPropagation(); openDocumentViewer('${doc.doc_id}')">
+                    View →
+                </button>
+            </div>
+        </div>
+    `).join('');
+
+    list.style.display = 'block';
+    scrollToSection('browser');
+}
+
+function openDocumentViewer(docId) {
+    currentDocId = docId;
+    document.getElementById('viewerDocId').textContent = docId;
+    document.getElementById('documentViewer').style.display = 'block';
+    document.getElementById('rangeOffset').value = 0;
+    document.getElementById('rangeLimit').value = 10;
+    document.getElementById('viewerContent').innerHTML = '<div class="loading-placeholder">Select a range and click "Retrieve Range"</div>';
+    scrollToSection('browser');
+}
+
+function closeDocumentViewer() {
+    document.getElementById('documentViewer').style.display = 'none';
+    currentDocId = null;
+}
+
+async function fetchDocumentRange() {
+    if (!currentDocId) return;
+
+    try {
+        showLoading();
+        const offset = parseInt(document.getElementById('rangeOffset').value) || 0;
+        const limit = parseInt(document.getElementById('rangeLimit').value) || 10;
+
+        const response = await fetch(
+            `${API_BASE}/smart/retrieve/json/${currentDocId}/range?offset=${offset}&limit=${limit}`,
+            {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            }
+        );
+
+        const data = await response.json();
+        hideLoading();
+
+        if (data.success) {
+            displayRangeData(data);
+        } else {
+            showToast('Error', data.error || 'Failed to retrieve range', 'error');
+        }
+    } catch (error) {
+        hideLoading();
+        showToast('Error', 'Failed to fetch document range', 'error');
+        console.error(error);
+    }
+}
+
+function displayRangeData(data) {
+    const content = document.getElementById('viewerContent');
+    const rangeInfo = data.range_info;
+    const dbType = data.database_type || 'unknown';
+    const isSQL = dbType === 'sql';
+
+    content.innerHTML = `
+        <div class="card" style="background: ${isSQL ? 'rgba(99, 102, 241, 0.05)' : 'rgba(139, 92, 246, 0.05)'};">
+            <h4 class="mb-1">📦 Retrieved Data Range</h4>
+            <div class="grid-3 mb-2">
+                <div class="stat-item">
+                    <div class="stat-label">Offset</div>
+                    <div class="stat-value">${rangeInfo.offset}</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Limit</div>
+                    <div class="stat-value">${rangeInfo.limit || 'All'}</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Returned</div>
+                    <div class="stat-value">${rangeInfo.returned_count} / ${rangeInfo.total_count}</div>
+                </div>
+            </div>
+            ${rangeInfo.has_more ? '<div class="mb-2" style="color: var(--primary-color);">📄 More data available - increase limit or offset to see more</div>' : ''}
+        </div>
+
+        <div class="card mt-2">
+            <h4 class="mb-1">📊 Data Preview</h4>
+            <pre class="code-textarea" style="background: var(--bg-primary); padding: var(--spacing-md); border-radius: var(--border-radius-md); overflow-x: auto; max-height: 500px;">${JSON.stringify(data.data, null, 2)}</pre>
+        </div>
+
+        <div class="card mt-2">
+            <h4 class="mb-1">⬇️ Download Options</h4>
+            <div class="grid-2">
+                <button class="btn-primary" onclick="downloadJSON('${data.doc_id}', ${JSON.stringify(data.data).replace(/'/g, "\\'")}	)">
+                    Download This Range
+                </button>
+                <button class="btn-secondary" onclick="downloadFullDocument('${data.doc_id}')">
+                    Download Full Document
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function downloadJSON(filename, data) {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filename}_range.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Success', 'Range data downloaded!', 'success');
+}
+
+async function downloadFullDocument(docId) {
+    try {
+        showLoading();
+        const response = await fetch(`${API_BASE}/smart/retrieve/json/${docId}`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+
+        const result = await response.json();
+        hideLoading();
+
+        if (result.data) {
+            const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${docId}_full.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('Success', 'Full document downloaded!', 'success');
+        } else {
+            showToast('Error', 'Failed to download document', 'error');
+        }
+    } catch (error) {
+        hideLoading();
+        showToast('Error', 'Failed to download document', 'error');
+        console.error(error);
+    }
 }
 
 // ============================================

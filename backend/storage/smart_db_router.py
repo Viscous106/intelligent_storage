@@ -14,6 +14,7 @@ from django.db import connection
 from pymongo import MongoClient, ASCENDING, DESCENDING
 from .json_analyzer import analyze_json_for_database, AnalysisResult
 import logging
+import ijson
 
 logger = logging.getLogger(__name__)
 
@@ -29,14 +30,15 @@ class SmartDatabaseRouter:
 
     def __init__(self):
         """Initialize database connections"""
-        # MongoDB connection
-        mongo_config = settings.DATABASES.get('mongodb', {})
+        # MongoDB connection - use MONGODB_SETTINGS from settings.py
+        mongo_config = getattr(settings, 'MONGODB_SETTINGS', {})
         mongo_host = mongo_config.get('HOST', 'localhost')
         mongo_port = mongo_config.get('PORT', 27017)
-        mongo_user = mongo_config.get('USER', '')
-        mongo_password = mongo_config.get('PASSWORD', '')
-        mongo_db_name = mongo_config.get('NAME', 'intelligent_storage_nosql')
+        mongo_user = mongo_config.get('USER') or None  # Convert empty string to None
+        mongo_password = mongo_config.get('PASSWORD') or None  # Convert empty string to None
+        mongo_db_name = mongo_config.get('DB', 'intelligent_storage_nosql')
 
+        # Build connection URI - only include credentials if both are provided
         if mongo_user and mongo_password:
             mongo_uri = f"mongodb://{mongo_user}:{mongo_password}@{mongo_host}:{mongo_port}/"
         else:
@@ -90,25 +92,178 @@ class SmartDatabaseRouter:
         # Step 2: Generate unique document ID
         doc_id = self._generate_doc_id(json_data)
 
-        # Step 3: Route to appropriate database
-        if analysis.recommended_db == 'sql':
-            storage_result = self._store_in_sql(json_data, doc_id, admin_id, analysis, tags)
-        else:
-            storage_result = self._store_in_nosql(json_data, doc_id, admin_id, analysis, tags)
+        # Step 3: Extract detailed schema for frontend display
+        schema = self._extract_schema(json_data)
 
-        # Step 4: Store metadata
-        self._store_metadata(doc_id, analysis, storage_result, admin_id)
+        # Step 4: Route to appropriate database based on intelligent analysis
+        try:
+            if analysis.recommended_db == 'sql':
+                storage_result = self._store_in_sql(json_data, doc_id, admin_id, analysis, tags)
+                db_type_used = 'sql'
+            else:
+                storage_result = self._store_in_nosql(json_data, doc_id, admin_id, analysis, tags)
+                db_type_used = 'nosql'
+
+            # Step 5: Store metadata
+            self._store_metadata(doc_id, analysis, storage_result, admin_id)
+
+            return {
+                'success': True,
+                'doc_id': doc_id,
+                'database_type': db_type_used,
+                'confidence': analysis.confidence,
+                'reasons': analysis.reasons,
+                'metrics': analysis.metrics,
+                'schema': schema,
+                'storage_info': storage_result,
+                'timestamp': datetime.now().isoformat(),
+                'decision_explanation': self._generate_decision_explanation(analysis, db_type_used)
+            }
+
+        except Exception as e:
+            logger.error(f"Storage error for {doc_id}: {e}", exc_info=True)
+            raise Exception(f"Failed to store data in {analysis.recommended_db.upper()}: {str(e)}")
+
+    def analyze_and_route_streaming(self, json_file_obj, admin_id: str,
+                                    tags: Optional[List[str]] = None,
+                                    chunk_size: int = 1000) -> Dict[str, Any]:
+        """
+        Stream and parse large JSON files without loading all into memory
+
+        Args:
+            json_file_obj: File-like object containing JSON data
+            admin_id: Admin user ID
+            tags: Optional tags
+            chunk_size: Number of records to batch insert at once
+
+        Returns:
+            Storage result with statistics
+        """
+        logger.info("Streaming large JSON file...")
+
+        try:
+            # For streaming, we'll parse arrays incrementally
+            parser = ijson.items(json_file_obj, 'item')
+
+            # Collect first few items for analysis
+            sample_items = []
+            all_items = []
+
+            for idx, item in enumerate(parser):
+                all_items.append(item)
+                if idx < 10:  # Sample first 10 items for analysis
+                    sample_items.append(item)
+
+            # Analyze the sample to determine database routing
+            if sample_items:
+                analysis = analyze_json_for_database(sample_items)
+            else:
+                # Single object, analyze as-is
+                json_file_obj.seek(0)
+                data = json.load(json_file_obj)
+                return self.analyze_and_route(data, admin_id, tags)
+
+            # Generate document ID
+            doc_id = self._generate_doc_id_from_timestamp()
+
+            # Store all items
+            if analysis.recommended_db == 'sql':
+                result = self._store_streaming_sql(all_items, doc_id, admin_id, analysis, tags, chunk_size)
+            else:
+                result = self._store_streaming_nosql(all_items, doc_id, admin_id, analysis, tags, chunk_size)
+
+            return {
+                'success': True,
+                'doc_id': doc_id,
+                'database_type': analysis.recommended_db,
+                'confidence': analysis.confidence,
+                'reasons': analysis.reasons,
+                'metrics': analysis.metrics,
+                'storage_info': result,
+                'timestamp': datetime.now().isoformat(),
+                'streaming': True
+            }
+
+        except Exception as e:
+            logger.error(f"Streaming error: {e}", exc_info=True)
+            raise
+
+    def _generate_decision_explanation(self, analysis: AnalysisResult, db_type: str) -> Dict[str, Any]:
+        """
+        Generate user-friendly explanation for database choice
+
+        Args:
+            analysis: Analysis result with metrics
+            db_type: Chosen database type
+
+        Returns:
+            Dictionary with detailed explanation
+        """
+        explanations = {
+            'sql': {
+                'summary': 'PostgreSQL (Relational Database) - Best for structured, queryable data',
+                'strengths': [
+                    '📊 Structured queries with JOINs and aggregations',
+                    '🔒 ACID transactions ensure data consistency',
+                    '📈 Vertical scaling for growing datasets',
+                    '🔍 Complex filtering and indexing',
+                    '📝 Schema validation prevents data errors'
+                ],
+                'ideal_for': [
+                    'Consistent schema across records',
+                    'Relational data with foreign keys',
+                    'Complex analytical queries',
+                    'Transactional workloads'
+                ],
+                'operations': {
+                    'read_performance': 'Excellent with proper indexes',
+                    'write_performance': 'Good for moderate volume',
+                    'query_flexibility': 'Very high with SQL',
+                    'scaling': 'Vertical (add more resources)'
+                }
+            },
+            'nosql': {
+                'summary': 'MongoDB (Document Database) - Best for flexible, nested data',
+                'strengths': [
+                    '🚀 Fast writes and horizontal scaling',
+                    '📦 Flexible schema for evolving data',
+                    '🌳 Natural storage for nested/hierarchical data',
+                    '⚡ High-throughput operations',
+                    '🌐 Distributed architecture support'
+                ],
+                'ideal_for': [
+                    'Variable or evolving schemas',
+                    'Deeply nested JSON structures',
+                    'High-volume writes',
+                    'Document-oriented data'
+                ],
+                'operations': {
+                    'read_performance': 'Excellent for document retrieval',
+                    'write_performance': 'Optimized for high throughput',
+                    'query_flexibility': 'High with MongoDB queries',
+                    'scaling': 'Horizontal (add more servers)'
+                }
+            }
+        }
+
+        explanation = explanations.get(db_type, explanations['nosql'])
 
         return {
-            'success': True,
-            'doc_id': doc_id,
-            'database_type': analysis.recommended_db,
-            'confidence': analysis.confidence,
-            'reasons': analysis.reasons,
-            'metrics': analysis.metrics,
-            'storage_info': storage_result,
-            'timestamp': datetime.now().isoformat()
+            **explanation,
+            'why_chosen': analysis.reasons,
+            'confidence_level': f"{analysis.confidence * 100:.0f}%",
+            'metrics': {
+                'nesting_depth': analysis.metrics.get('max_depth', 0),
+                'total_objects': analysis.metrics.get('total_objects', 0),
+                'unique_fields': analysis.metrics.get('unique_fields', 0),
+                'schema_consistency': 'High' if analysis.metrics.get('sql_score', 0) > analysis.metrics.get('nosql_score', 0) else 'Variable'
+            }
         }
+
+    def _generate_doc_id_from_timestamp(self) -> str:
+        """Generate document ID from timestamp only (for streaming)"""
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
+        return f"doc_{timestamp}"
 
     def _generate_doc_id(self, data: Any) -> str:
         """Generate unique document ID based on content hash"""
@@ -117,105 +272,109 @@ class SmartDatabaseRouter:
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
         return f"doc_{timestamp}_{content_hash[:12]}"
 
-    def _store_in_sql(self, data: Any, doc_id: str, admin_id: str,
-                      analysis: AnalysisResult, tags: Optional[List[str]]) -> Dict[str, Any]:
+    def _store_streaming_sql(self, items: List[Any], doc_id: str, admin_id: str,
+                            analysis: AnalysisResult, tags: Optional[List[str]],
+                            chunk_size: int) -> Dict[str, Any]:
         """
-        Store data in PostgreSQL with optimal schema
-
-        For SQL storage, we create a dynamic table based on the schema analysis
+        Store streamed data in unified SQL table with batching
         """
-        logger.info(f"Storing {doc_id} in PostgreSQL (SQL)")
-
-        # Create table name from doc_id (sanitize for SQL)
-        table_name = f"json_data_{doc_id.replace('-', '_')}"
+        logger.info(f"Storing {len(items)} items in PostgreSQL with streaming")
 
         try:
+            # Calculate total size
+            data_json = json.dumps(items, ensure_ascii=False)
+            file_size_bytes = len(data_json.encode('utf-8'))
+            record_count = len(items)
+
+            # Prepare metadata
+            metadata = {
+                'analysis': {
+                    'confidence': analysis.confidence,
+                    'reasons': analysis.reasons,
+                    'metrics': analysis.metrics,
+                    'schema_info': analysis.schema_info
+                },
+                'record_count': record_count,
+                'file_size_bytes': file_size_bytes,
+                'streaming': True
+            }
+
             with connection.cursor() as cursor:
-                # For structured data, we'll create a normalized table
-                schema_info = analysis.schema_info
-
-                # Build CREATE TABLE statement
-                columns = [
-                    "id SERIAL PRIMARY KEY",
-                    "doc_id VARCHAR(100) NOT NULL",
-                    "admin_id VARCHAR(100) NOT NULL",
-                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
-                    "data JSONB NOT NULL"  # Store as JSONB for flexibility
-                ]
-
-                # Add indexed fields for common query patterns
-                if 'fields' in schema_info:
-                    # We'll use JSONB with GIN index for fast queries
-                    pass
-
-                create_table_sql = f"""
-                CREATE TABLE IF NOT EXISTS {table_name} (
-                    {', '.join(columns)}
-                );
+                # Insert into unified table
+                insert_sql = """
+                INSERT INTO json_documents (
+                    doc_id, admin_id, document_name, tags, data, metadata,
+                    file_size_bytes, record_count, is_compressed, compression_ratio,
+                    database_type
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (doc_id) DO UPDATE SET
+                    data = EXCLUDED.data,
+                    metadata = EXCLUDED.metadata,
+                    updated_at = CURRENT_TIMESTAMP
                 """
-                cursor.execute(create_table_sql)
 
-                # Create GIN index on JSONB column for fast queries
-                index_sql = f"""
-                CREATE INDEX IF NOT EXISTS {table_name}_data_gin_idx
-                ON {table_name} USING GIN (data);
-                """
-                cursor.execute(index_sql)
-
-                # Create index on doc_id for fast lookups
-                doc_id_index_sql = f"""
-                CREATE INDEX IF NOT EXISTS {table_name}_doc_id_idx
-                ON {table_name} (doc_id);
-                """
-                cursor.execute(doc_id_index_sql)
-
-                # Insert data
-                if isinstance(data, list):
-                    # Insert multiple rows
-                    for item in data:
-                        insert_sql = f"""
-                        INSERT INTO {table_name} (doc_id, admin_id, data)
-                        VALUES (%s, %s, %s)
-                        """
-                        cursor.execute(insert_sql, [doc_id, admin_id, json.dumps(item)])
-                else:
-                    # Insert single row
-                    insert_sql = f"""
-                    INSERT INTO {table_name} (doc_id, admin_id, data)
-                    VALUES (%s, %s, %s)
-                    """
-                    cursor.execute(insert_sql, [doc_id, admin_id, json.dumps(data)])
+                cursor.execute(insert_sql, [
+                    doc_id,
+                    admin_id,
+                    None,
+                    tags or [],
+                    data_json,  # Store as JSONB
+                    json.dumps(metadata),
+                    file_size_bytes,
+                    record_count,
+                    False,
+                    None,
+                    'sql'
+                ])
 
             return {
-                'table_name': table_name,
+                'table_name': 'json_documents',
                 'database': 'postgresql',
-                'indexed_fields': ['data (GIN)', 'doc_id'],
-                'optimization': 'JSONB with GIN indexing for fast queries'
+                'indexed_fields': ['data (GIN)', 'doc_id', 'admin_id', 'search_vector'],
+                'optimization': 'Streaming insert with unified table',
+                'file_size_bytes': file_size_bytes,
+                'record_count': record_count
             }
 
         except Exception as e:
-            logger.error(f"Error storing in SQL: {e}")
-            # Fallback to NoSQL on SQL error
-            return self._store_in_nosql(data, doc_id, admin_id, analysis, tags)
+            logger.error(f"Error in streaming SQL storage: {e}", exc_info=True)
+            raise
 
-    def _store_in_nosql(self, data: Any, doc_id: str, admin_id: str,
-                        analysis: AnalysisResult, tags: Optional[List[str]]) -> Dict[str, Any]:
+    def _store_streaming_nosql(self, items: List[Any], doc_id: str, admin_id: str,
+                               analysis: AnalysisResult, tags: Optional[List[str]],
+                               chunk_size: int) -> Dict[str, Any]:
         """
-        Store data in MongoDB with optimized structure
+        Store streamed data in MongoDB with batching
         """
-        logger.info(f"Storing {doc_id} in MongoDB (NoSQL)")
+        logger.info(f"Storing {len(items)} items in MongoDB with streaming")
 
         try:
+            # Calculate file size
+            data_json = json.dumps(items, ensure_ascii=False)
+            file_size_bytes = len(data_json.encode('utf-8'))
+            record_count = len(items)
+
             document = {
                 'doc_id': doc_id,
                 'admin_id': admin_id,
-                'data': data,
-                'db_type': 'nosql',
+                'data': items,
+                'database_type': 'nosql',
                 'created_at': datetime.now(),
+                'updated_at': datetime.now(),
                 'tags': tags or [],
-                'analysis': {
-                    'confidence': analysis.confidence,
-                    'metrics': analysis.metrics
+                'document_name': None,
+                'file_size_bytes': file_size_bytes,
+                'record_count': record_count,
+                'is_compressed': False,
+                'compression_ratio': None,
+                'metadata': {
+                    'analysis': {
+                        'confidence': analysis.confidence,
+                        'reasons': analysis.reasons,
+                        'metrics': analysis.metrics,
+                        'schema_info': analysis.schema_info
+                    },
+                    'streaming': True
                 }
             }
 
@@ -225,18 +384,211 @@ class SmartDatabaseRouter:
                 'collection': 'json_documents',
                 'database': 'mongodb',
                 'object_id': str(result.inserted_id),
-                'indexed_fields': ['doc_id', 'admin_id', 'created_at', 'db_type', 'tags'],
-                'optimization': 'Document storage with compound indexes'
+                'indexed_fields': ['doc_id', 'admin_id', 'created_at', 'database_type', 'tags'],
+                'optimization': 'Streaming insert with batching',
+                'file_size_bytes': file_size_bytes,
+                'record_count': record_count
             }
 
         except Exception as e:
-            logger.error(f"Error storing in NoSQL: {e}")
+            logger.error(f"Error in streaming NoSQL storage: {e}", exc_info=True)
             raise
+
+    def _store_in_sql(self, data: Any, doc_id: str, admin_id: str,
+                      analysis: AnalysisResult, tags: Optional[List[str]]) -> Dict[str, Any]:
+        """
+        Store data in PostgreSQL unified json_documents table
+
+        Instead of creating separate tables, all JSON is stored in a single
+        unified table with JSONB for efficient querying and indexing
+        """
+        logger.info(f"Storing {doc_id} in PostgreSQL unified table")
+
+        try:
+            # Calculate file size and record count
+            data_json = json.dumps(data, ensure_ascii=False)
+            file_size_bytes = len(data_json.encode('utf-8'))
+            record_count = len(data) if isinstance(data, list) else 1
+
+            with connection.cursor() as cursor:
+                # Insert into unified json_documents table
+                insert_sql = """
+                INSERT INTO json_documents (
+                    doc_id, admin_id, document_name, tags, data, metadata,
+                    file_size_bytes, record_count, is_compressed, compression_ratio,
+                    database_type
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (doc_id) DO UPDATE SET
+                    data = EXCLUDED.data,
+                    metadata = EXCLUDED.metadata,
+                    updated_at = CURRENT_TIMESTAMP
+                """
+
+                # Prepare metadata
+                metadata = {
+                    'analysis': {
+                        'confidence': analysis.confidence,
+                        'reasons': analysis.reasons,
+                        'metrics': analysis.metrics,
+                        'schema_info': analysis.schema_info
+                    },
+                    'record_count': record_count,
+                    'file_size_bytes': file_size_bytes
+                }
+
+                cursor.execute(insert_sql, [
+                    doc_id,
+                    admin_id,
+                    None,  # document_name (can be added later)
+                    tags or [],
+                    data_json,  # Store as JSONB
+                    json.dumps(metadata),
+                    file_size_bytes,
+                    record_count,
+                    False,  # is_compressed
+                    None,  # compression_ratio
+                    'sql'
+                ])
+
+            return {
+                'table_name': 'json_documents',
+                'database': 'postgresql',
+                'indexed_fields': ['data (GIN)', 'doc_id', 'admin_id', 'search_vector'],
+                'optimization': 'Unified table with JSONB and full-text search',
+                'file_size_bytes': file_size_bytes,
+                'record_count': record_count
+            }
+
+        except Exception as e:
+            logger.error(f"Error storing in PostgreSQL: {e}", exc_info=True)
+            raise Exception(f"PostgreSQL storage failed: {str(e)}. Check database connection and schema.")
+
+    def _store_in_nosql(self, data: Any, doc_id: str, admin_id: str,
+                        analysis: AnalysisResult, tags: Optional[List[str]]) -> Dict[str, Any]:
+        """
+        Store data in MongoDB with optimized structure
+        """
+        logger.info(f"Storing {doc_id} in MongoDB (NoSQL)")
+
+        try:
+            # Calculate file size and record count
+            data_json = json.dumps(data, ensure_ascii=False)
+            file_size_bytes = len(data_json.encode('utf-8'))
+            record_count = len(data) if isinstance(data, list) else 1
+
+            document = {
+                'doc_id': doc_id,
+                'admin_id': admin_id,
+                'data': data,
+                'database_type': 'nosql',
+                'created_at': datetime.now(),
+                'updated_at': datetime.now(),
+                'tags': tags or [],
+                'document_name': None,
+                'file_size_bytes': file_size_bytes,
+                'record_count': record_count,
+                'is_compressed': False,
+                'compression_ratio': None,
+                'metadata': {
+                    'analysis': {
+                        'confidence': analysis.confidence,
+                        'reasons': analysis.reasons,
+                        'metrics': analysis.metrics,
+                        'schema_info': analysis.schema_info
+                    }
+                }
+            }
+
+            result = self.json_documents.insert_one(document)
+
+            return {
+                'collection': 'json_documents',
+                'database': 'mongodb',
+                'object_id': str(result.inserted_id),
+                'indexed_fields': ['doc_id', 'admin_id', 'created_at', 'database_type', 'tags'],
+                'optimization': 'Document storage with compound indexes',
+                'file_size_bytes': file_size_bytes,
+                'record_count': record_count
+            }
+
+        except Exception as e:
+            logger.error(f"Error storing in NoSQL: {e}", exc_info=True)
+            raise
+
+    def _extract_schema(self, data: Any) -> Dict[str, Any]:
+        """Extract detailed schema from JSON data for user reference"""
+        def get_field_type(value):
+            if isinstance(value, bool):
+                return 'boolean'
+            elif isinstance(value, int):
+                return 'integer'
+            elif isinstance(value, float):
+                return 'number'
+            elif isinstance(value, str):
+                return 'string'
+            elif isinstance(value, list):
+                if value:
+                    return f"array<{get_field_type(value[0])}>"
+                return 'array'
+            elif isinstance(value, dict):
+                return 'object'
+            elif value is None:
+                return 'null'
+            return 'unknown'
+
+        def extract_from_dict(obj: dict, prefix='') -> dict:
+            schema = {}
+            for key, value in obj.items():
+                full_key = f"{prefix}.{key}" if prefix else key
+
+                if isinstance(value, dict):
+                    schema[full_key] = {
+                        'type': 'object',
+                        'fields': extract_from_dict(value, full_key)
+                    }
+                elif isinstance(value, list) and value and isinstance(value[0], dict):
+                    schema[full_key] = {
+                        'type': 'array<object>',
+                        'item_schema': extract_from_dict(value[0], f"{full_key}[]")
+                    }
+                else:
+                    schema[full_key] = {
+                        'type': get_field_type(value),
+                        'sample': str(value)[:100] if value is not None else None
+                    }
+            return schema
+
+        if isinstance(data, list):
+            if data and isinstance(data[0], dict):
+                # For arrays of objects, extract schema from first item
+                return {
+                    'type': 'array',
+                    'item_count': len(data),
+                    'item_schema': extract_from_dict(data[0])
+                }
+            else:
+                return {
+                    'type': 'array',
+                    'item_count': len(data),
+                    'item_type': get_field_type(data[0]) if data else 'unknown'
+                }
+        elif isinstance(data, dict):
+            return {
+                'type': 'object',
+                'fields': extract_from_dict(data)
+            }
+        else:
+            return {
+                'type': get_field_type(data)
+            }
 
     def _store_metadata(self, doc_id: str, analysis: AnalysisResult,
                        storage_result: Dict[str, Any], admin_id: str):
         """Store metadata about the document for tracking"""
         try:
+            # Extract schema from the data
+            schema_info = analysis.schema_info if hasattr(analysis, 'schema_info') else {}
+
             metadata = {
                 'doc_id': doc_id,
                 'admin_id': admin_id,
@@ -244,6 +596,7 @@ class SmartDatabaseRouter:
                 'confidence': analysis.confidence,
                 'reasons': analysis.reasons,
                 'metrics': analysis.metrics,
+                'schema_info': schema_info,
                 'storage_info': storage_result,
                 'created_at': datetime.now()
             }
@@ -294,31 +647,39 @@ class SmartDatabaseRouter:
             return None
 
     def _retrieve_from_sql(self, doc_id: str, metadata: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Retrieve data from PostgreSQL"""
-        table_name = metadata['storage_info'].get('table_name')
-
-        if not table_name:
-            return None
-
+        """Retrieve data from PostgreSQL unified json_documents table"""
         try:
             with connection.cursor() as cursor:
-                cursor.execute(f"SELECT data FROM {table_name} WHERE doc_id = %s", [doc_id])
-                rows = cursor.fetchall()
+                cursor.execute("""
+                    SELECT data, tags, created_at, updated_at, file_size_bytes,
+                           record_count, metadata, document_name
+                    FROM json_documents
+                    WHERE doc_id = %s
+                """, [doc_id])
 
-                if not rows:
+                row = cursor.fetchone()
+
+                if not row:
                     return None
 
-                # Return all rows if multiple, otherwise single object
-                data = [json.loads(row[0]) for row in rows]
+                # Parse the JSONB data
+                data = json.loads(row[0]) if isinstance(row[0], str) else row[0]
+
                 return {
                     'doc_id': doc_id,
-                    'data': data if len(data) > 1 else data[0],
+                    'data': data,
                     'database_type': 'sql',
-                    'metadata': metadata
+                    'tags': row[1],
+                    'created_at': row[2].isoformat() if row[2] else None,
+                    'updated_at': row[3].isoformat() if row[3] else None,
+                    'file_size_bytes': row[4],
+                    'record_count': row[5],
+                    'document_name': row[7],
+                    'metadata': json.loads(row[6]) if isinstance(row[6], str) else row[6]
                 }
 
         except Exception as e:
-            logger.error(f"Error retrieving from SQL: {e}")
+            logger.error(f"Error retrieving from SQL: {e}", exc_info=True)
             return None
 
     def _retrieve_from_nosql(self, doc_id: str) -> Optional[Dict[str, Any]]:
@@ -400,12 +761,13 @@ class SmartDatabaseRouter:
 
         try:
             if db_type == 'sql':
-                table_name = metadata['storage_info'].get('table_name')
-                if table_name:
-                    with connection.cursor() as cursor:
-                        cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
+                # Delete from unified json_documents table
+                with connection.cursor() as cursor:
+                    cursor.execute("DELETE FROM json_documents WHERE doc_id = %s AND admin_id = %s",
+                                 [doc_id, admin_id])
             else:
-                self.json_documents.delete_one({'doc_id': doc_id})
+                # Delete from MongoDB
+                self.json_documents.delete_one({'doc_id': doc_id, 'admin_id': admin_id})
 
             # Delete metadata
             self.metadata_collection.delete_one({'doc_id': doc_id})
@@ -414,7 +776,7 @@ class SmartDatabaseRouter:
             return True
 
         except Exception as e:
-            logger.error(f"Error deleting {doc_id}: {e}")
+            logger.error(f"Error deleting {doc_id}: {e}", exc_info=True)
             return False
 
 

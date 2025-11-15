@@ -265,6 +265,65 @@
                 </div>
             </section>
 
+            <!-- File Browser Section -->
+            <section id="browser" class="section">
+                <div class="section-header">
+                    <h2 class="section-title">📁 My JSON Documents</h2>
+                    <p class="section-description">
+                        Browse, view, and retrieve your stored JSON documents with range selection.
+                    </p>
+                </div>
+
+                <div class="card">
+                    <button class="btn-primary btn-full" id="loadDocumentsBtn">
+                        Load My Documents
+                    </button>
+                </div>
+
+                <!-- Documents List -->
+                <div id="documentsList" style="display: none;">
+                    <div class="card">
+                        <h3 class="mb-2">Your Documents</h3>
+                        <div id="documentsGrid" class="documents-grid"></div>
+                    </div>
+                </div>
+
+                <!-- Document Viewer with Range Selection -->
+                <div id="documentViewer" class="results-container" style="display: none;">
+                    <div class="results-header">
+                        <h3 class="results-title">Document: <span id="viewerDocId"></span></h3>
+                        <button class="btn-text" onclick="closeDocumentViewer()">Close</button>
+                    </div>
+
+                    <div class="card">
+                        <h4 class="mb-1">📊 Range Selection</h4>
+                        <p class="mb-2" style="color: var(--text-secondary);">
+                            Select a range of data to retrieve (for array data)
+                        </p>
+
+                        <div class="grid-3">
+                            <div class="form-group">
+                                <label class="form-label">Start Index (Offset)</label>
+                                <input type="number" id="rangeOffset" class="form-input" value="0" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Number of Items (Limit)</label>
+                                <input type="number" id="rangeLimit" class="form-input" value="10" min="1">
+                            </div>
+                            <div class="form-group" style="display: flex; align-items: flex-end;">
+                                <button class="btn-primary btn-full" onclick="fetchDocumentRange()">
+                                    Retrieve Range
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="viewerContent" class="card mt-2">
+                        <div class="loading-placeholder">Select a range and click "Retrieve Range"</div>
+                    </div>
+                </div>
+            </section>
+
             <!-- Analytics Section -->
             <section id="analytics" class="section">
                 <div class="section-header">

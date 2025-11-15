@@ -170,6 +170,65 @@ def upload_json(request, admin_id):
 @csrf_exempt
 @require_http_methods(["POST"])
 @require_admin
+def upload_json_file(request, admin_id):
+    """
+    Upload large JSON file with streaming support
+
+    POST /api/upload/json/file
+    Header: Authorization: Bearer <token>
+    Content-Type: multipart/form-data
+    Body: file upload (.json)
+    Returns: Analysis result and storage information
+    """
+    try:
+        if 'file' not in request.FILES:
+            return JsonResponse({'error': 'No file provided'}, status=400)
+
+        uploaded_file = request.FILES['file']
+
+        # Check if it's a JSON file
+        if not uploaded_file.name.endswith('.json'):
+            return JsonResponse({'error': 'Only .json files are supported'}, status=400)
+
+        # Get optional tags
+        tags = request.GET.get('tags', '').split(',') if request.GET.get('tags') else None
+
+        # Determine if we should use streaming based on file size
+        file_size = uploaded_file.size
+        use_streaming = file_size > 10 * 1024 * 1024  # 10MB threshold
+
+        db_router = get_db_router()
+
+        if use_streaming:
+            logger.info(f"Large file detected ({file_size} bytes), using streaming upload")
+            result = db_router.analyze_and_route_streaming(uploaded_file.file, admin_id, tags)
+        else:
+            # Load entire file for smaller files
+            json_data = json.load(uploaded_file.file)
+            result = db_router.analyze_and_route(json_data, admin_id, tags)
+
+        # Log decision
+        logger.info(
+            f"JSON file uploaded by {admin_id}: {result['doc_id']} -> "
+            f"{result['database_type'].upper()} (size: {file_size} bytes)"
+        )
+
+        # Cache result
+        cache_key = f"json_{result['doc_id']}"
+        cache.set(cache_key, result, timeout=3600)
+
+        return JsonResponse(result, status=201)
+
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON in file'}, status=400)
+    except Exception as e:
+        logger.error(f"JSON file upload error: {e}", exc_info=True)
+        return JsonResponse({'error': f'Upload failed: {str(e)}'}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@require_admin
 def analyze_json(request, admin_id):
     """
     Analyze JSON without storing (preview mode)
@@ -295,6 +354,91 @@ def retrieve_json(request, doc_id, admin_id):
     except Exception as e:
         logger.error(f"Retrieval error: {e}")
         return JsonResponse({'error': 'Retrieval failed'}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+@require_admin
+def retrieve_json_range(request, doc_id, admin_id):
+    """
+    Retrieve JSON document with range selection (offset/limit)
+
+    GET /api/smart/retrieve/json/<doc_id>/range?offset=0&limit=10
+    Query params:
+        - offset: Starting index (default: 0)
+        - limit: Number of items to return (default: all)
+        - fields: Comma-separated field names to include (optional)
+
+    Returns: Subset of JSON data with metadata
+    """
+    try:
+        offset = int(request.GET.get('offset', 0))
+        limit = request.GET.get('limit')
+        limit = int(limit) if limit else None
+        fields = request.GET.get('fields', '').split(',') if request.GET.get('fields') else None
+
+        # Retrieve full document
+        db_router = get_db_router()
+        result = db_router.retrieve(doc_id, admin_id)
+
+        if not result:
+            return JsonResponse({'error': 'Document not found or unauthorized'}, status=404)
+
+        data = result.get('data')
+        total_count = 0
+        sliced_data = None
+
+        # Apply range selection
+        if isinstance(data, list):
+            total_count = len(data)
+            end_index = offset + limit if limit else len(data)
+            sliced_data = data[offset:end_index]
+
+            # Apply field filtering if requested
+            if fields and sliced_data and isinstance(sliced_data[0], dict):
+                sliced_data = [
+                    {k: v for k, v in item.items() if k in fields}
+                    for item in sliced_data
+                ]
+        elif isinstance(data, dict):
+            # For objects, apply field filtering
+            if fields:
+                sliced_data = {k: v for k, v in data.items() if k in fields}
+                total_count = len(data)
+            else:
+                sliced_data = data
+                total_count = len(data)
+        else:
+            sliced_data = data
+            total_count = 1
+
+        response = {
+            'success': True,
+            'doc_id': doc_id,
+            'data': sliced_data,
+            'range_info': {
+                'offset': offset,
+                'limit': limit,
+                'returned_count': len(sliced_data) if isinstance(sliced_data, (list, dict)) else 1,
+                'total_count': total_count,
+                'has_more': (offset + (limit or 0)) < total_count if limit else False
+            },
+            'database_type': result.get('database_type'),
+            'timestamp': result.get('timestamp')
+        }
+
+        if fields:
+            response['range_info']['selected_fields'] = fields
+
+        logger.info(f"Retrieved range for {doc_id}: offset={offset}, limit={limit}")
+
+        return JsonResponse(response)
+
+    except ValueError as e:
+        return JsonResponse({'error': f'Invalid offset or limit parameter: {str(e)}'}, status=400)
+    except Exception as e:
+        logger.error(f"Range retrieval error: {e}", exc_info=True)
+        return JsonResponse({'error': f'Range retrieval failed: {str(e)}'}, status=500)
 
 
 @csrf_exempt
@@ -516,3 +660,52 @@ def get_statistics(request, admin_id):
     except Exception as e:
         logger.error(f"Statistics error: {e}")
         return JsonResponse({'error': 'Failed to get statistics'}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+@require_admin
+def get_document_schema(request, admin_id):
+    """
+    Get schema information for a specific document
+
+    GET /api/smart/schema/<doc_id>
+    Returns: Schema information with field types and structure
+    """
+    try:
+        doc_id = request.GET.get('doc_id')
+
+        if not doc_id:
+            return JsonResponse({'error': 'doc_id parameter required'}, status=400)
+
+        db_router = get_db_router()
+
+        # Try to get metadata from MongoDB first
+        metadata = db_router.metadata_collection.find_one({'doc_id': doc_id})
+
+        if metadata:
+            # Clean up MongoDB _id field
+            metadata.pop('_id', None)
+
+            # Convert datetime to string
+            if 'created_at' in metadata:
+                metadata['created_at'] = metadata['created_at'].isoformat()
+
+            return JsonResponse({
+                'success': True,
+                'doc_id': doc_id,
+                'schema_info': metadata.get('schema_info', {}),
+                'database_type': metadata.get('database_type'),
+                'metrics': metadata.get('metrics', {}),
+                'storage_info': metadata.get('storage_info', {}),
+                'created_at': metadata.get('created_at')
+            })
+        else:
+            return JsonResponse({
+                'error': 'Document not found',
+                'doc_id': doc_id
+            }, status=404)
+
+    except Exception as e:
+        logger.error(f"Schema retrieval error: {e}", exc_info=True)
+        return JsonResponse({'error': f'Failed to get schema: {str(e)}'}, status=500)
