@@ -27,8 +27,12 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-# Check if Docker Compose is installed
-if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
+# Check if Docker Compose is installed and set the command
+if command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE="docker-compose"
+elif docker compose version &> /dev/null 2>&1; then
+    DOCKER_COMPOSE="docker compose"
+else
     echo -e "${RED}✗ Docker Compose is not installed${NC}"
     echo -e "${YELLOW}  Install Docker Compose from: https://docs.docker.com/compose/install/${NC}"
     exit 1
@@ -50,7 +54,7 @@ echo ""
 # Stop and remove existing containers if -f flag is provided
 if [ "$1" == "-f" ] || [ "$1" == "--force" ]; then
     echo -e "${YELLOW}Stopping and removing existing containers...${NC}"
-    docker-compose down -v
+    $DOCKER_COMPOSE down -v
     echo -e "${GREEN}✓ Cleaned up existing containers${NC}"
     echo ""
 fi
@@ -60,13 +64,13 @@ echo -e "${CYAN}Building Docker images...${NC}"
 echo -e "${YELLOW}This may take a few minutes on first run...${NC}"
 echo ""
 
-docker-compose build
+$DOCKER_COMPOSE build
 
 echo ""
 echo -e "${CYAN}Starting all services...${NC}"
 echo ""
 
-docker-compose up -d
+$DOCKER_COMPOSE up -d
 
 echo ""
 echo -e "${GREEN}✓ All services started!${NC}"
@@ -79,7 +83,7 @@ sleep 5
 # Check service health
 echo ""
 echo -e "${CYAN}Service Status:${NC}"
-docker-compose ps
+$DOCKER_COMPOSE ps
 
 echo ""
 echo "================================================"
@@ -93,11 +97,11 @@ echo -e "  📡 API Docs:      ${GREEN}http://localhost:8000/api/${NC}"
 echo -e "  💾 Health Check:  ${GREEN}http://localhost:8000/api/health/${NC}"
 echo ""
 echo -e "${CYAN}Useful commands:${NC}"
-echo -e "  View logs:        ${YELLOW}docker-compose logs -f${NC}"
-echo -e "  View backend:     ${YELLOW}docker-compose logs -f backend${NC}"
-echo -e "  Stop services:    ${YELLOW}docker-compose stop${NC}"
-echo -e "  Restart:          ${YELLOW}docker-compose restart${NC}"
-echo -e "  Remove all:       ${YELLOW}docker-compose down -v${NC}"
+echo -e "  View logs:        ${YELLOW}$DOCKER_COMPOSE logs -f${NC}"
+echo -e "  View backend:     ${YELLOW}$DOCKER_COMPOSE logs -f backend${NC}"
+echo -e "  Stop services:    ${YELLOW}$DOCKER_COMPOSE stop${NC}"
+echo -e "  Restart:          ${YELLOW}$DOCKER_COMPOSE restart${NC}"
+echo -e "  Remove all:       ${YELLOW}$DOCKER_COMPOSE down -v${NC}"
 echo ""
 echo -e "${YELLOW}Note: First run will download Ollama models (3-5GB).${NC}"
 echo -e "${YELLOW}This happens automatically in the background.${NC}"
