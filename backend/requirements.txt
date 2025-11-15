@@ -32,6 +32,7 @@ redis==5.0.1
 # Validation & Serialization
 jsonschema==4.21.1
 marshmallow==3.20.2
+ijson==3.2.3  # Streaming JSON parser for large files
 
 # Monitoring & Logging
 django-extensions==3.2.3

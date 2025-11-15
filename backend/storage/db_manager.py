@@ -29,10 +29,17 @@ class DatabaseManager:
         """Initialize MongoDB connection."""
         try:
             mongo_settings = settings.MONGODB_SETTINGS
-            connection_string = (
-                f"mongodb://{mongo_settings['USER']}:{mongo_settings['PASSWORD']}"
-                f"@{mongo_settings['HOST']}:{mongo_settings['PORT']}/"
-            )
+            mongo_user = mongo_settings.get('USER') or None
+            mongo_password = mongo_settings.get('PASSWORD') or None
+            mongo_host = mongo_settings.get('HOST', 'localhost')
+            mongo_port = mongo_settings.get('PORT', 27017)
+
+            # Build connection string - only include credentials if both are provided
+            if mongo_user and mongo_password:
+                connection_string = f"mongodb://{mongo_user}:{mongo_password}@{mongo_host}:{mongo_port}/"
+            else:
+                connection_string = f"mongodb://{mongo_host}:{mongo_port}/"
+
             self.mongo_client = MongoClient(connection_string)
             self.mongo_db = self.mongo_client[mongo_settings['DB']]
             logger.info("MongoDB connection established")

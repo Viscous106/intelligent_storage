@@ -125,6 +125,24 @@ class JSONAnalyzer:
             nosql_score += abs(type_score)
             reasons.append(f"✓ NoSQL: {type_reason}")
 
+        # 6. Data Volume and Scaling Considerations
+        volume_score, volume_reason = self._analyze_data_volume()
+        if volume_score > 0:
+            sql_score += volume_score
+            reasons.append(f"✓ SQL: {volume_reason}")
+        else:
+            nosql_score += abs(volume_score)
+            reasons.append(f"✓ NoSQL: {volume_reason}")
+
+        # 7. Relationship Patterns
+        relationship_score, relationship_reason = self._analyze_relationships()
+        if relationship_score > 0:
+            sql_score += relationship_score
+            reasons.append(f"✓ SQL: {relationship_reason}")
+        else:
+            nosql_score += abs(relationship_score)
+            reasons.append(f"✓ NoSQL: {relationship_reason}")
+
         # Determine recommendation
         total_score = sql_score + nosql_score
         if total_score == 0:
@@ -283,6 +301,42 @@ class JSONAnalyzer:
             return (0.5, f"Mostly consistent types ({mixed_type_fields}/{total_fields} fields vary)")
         else:
             return (-1.5, f"Inconsistent types ({mixed_type_fields}/{total_fields} fields vary) - flexible schema needed")
+
+    def _analyze_data_volume(self) -> Tuple[float, str]:
+        """
+        Analyze data volume for scaling considerations
+        Returns: (score, reason) - positive for SQL, negative for NoSQL
+        """
+        if self.total_objects == 0:
+            return (0.0, "No data to analyze volume")
+
+        if self.total_objects < 1000:
+            return (1.0, f"Small dataset ({self.total_objects} records) - vertical scaling in SQL works well")
+        elif self.total_objects < 100000:
+            return (0.0, f"Medium dataset ({self.total_objects} records) - both SQL and NoSQL suitable")
+        else:
+            return (-1.5, f"Large dataset ({self.total_objects}+ records) - NoSQL horizontal scaling beneficial")
+
+    def _analyze_relationships(self) -> Tuple[float, str]:
+        """
+        Analyze potential relationships and foreign key patterns
+        Returns: (score, reason) - positive for SQL, negative for NoSQL
+        """
+        # Look for common foreign key patterns like 'id', 'user_id', etc.
+        fk_patterns = ['_id', 'Id']
+        id_fields = [field for field in self.field_occurrences.keys()
+                     if any(pattern in field for pattern in fk_patterns)]
+
+        if not id_fields:
+            return (-0.5, "No obvious relationship fields - document storage acceptable")
+
+        # Check for multiple ID fields (suggesting relationships)
+        if len(id_fields) > 2:
+            return (2.0, f"Multiple ID fields ({', '.join(id_fields[:3])}) suggest relational data")
+        elif len(id_fields) > 0:
+            return (0.5, f"Some ID fields present ({', '.join(id_fields)}) - mild relational tendency")
+
+        return (0.0, "No clear relationship pattern")
 
     def _generate_schema_info(self) -> Dict[str, Any]:
         """Generate schema information for database creation"""

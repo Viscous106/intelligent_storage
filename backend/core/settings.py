@@ -97,12 +97,12 @@ DATABASES = {
     }
 }
 
-# MongoDB Configuration
+# MongoDB Configuration (without authentication for development)
 MONGODB_SETTINGS = {
     'HOST': os.environ.get('MONGODB_HOST', 'localhost'),
     'PORT': int(os.environ.get('MONGODB_PORT', 27017)),
-    'USER': os.environ.get('MONGODB_USER', 'admin'),
-    'PASSWORD': os.environ.get('MONGODB_PASSWORD', 'admin123'),
+    'USER': os.environ.get('MONGODB_USER', ''),  # No auth in development
+    'PASSWORD': os.environ.get('MONGODB_PASSWORD', ''),  # No auth in development
     'DB': os.environ.get('MONGODB_DB', 'intelligent_storage_nosql'),
 }
 
