@@ -88,14 +88,13 @@ intelligent_storage/
 │   │
 │   ├── requirements.txt           # Full dependencies
 │   ├── requirements_minimal.txt   # Minimal dependencies
+│   ├── venv/                      # Python virtual environment
 │   └── manage.py                  # Django CLI
 │
-├── frontend/                       # Web Interface
-│   ├── index.html                 # Main page
-│   ├── styles.css                 # Professional styling
-│   └── app.js                     # JavaScript logic
-│
-└── docker-compose.yml             # Docker setup
+└── frontend/                       # Web Interface
+    ├── index.html                 # Main page
+    ├── styles.css                 # Professional styling
+    └── app.js                     # JavaScript logic
 ```
 
 ## 🔧 Technology Stack

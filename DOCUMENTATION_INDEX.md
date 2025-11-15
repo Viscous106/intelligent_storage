@@ -34,8 +34,7 @@ Complete documentation suite for the Intelligent Storage System. Use this index 
 ### Setup & Deployment
 4. **README.md** (Original)
    - Installation instructions
-   - Docker setup
-   - Manual setup guide
+   - Native Python setup guide
    - Usage guide
    - API documentation
    - Troubleshooting
@@ -227,9 +226,8 @@ Complete documentation suite for the Intelligent Storage System. Use this index 
 - `backend/storage/rag_service.py` - Semantic search (see RAG_SETUP.md)
 
 ### Infrastructure
-- `docker-compose.yml` - Container setup (see README.md + ARCH_LINUX_GUIDE.md)
 - `requirements.txt` - Dependencies (see ARCHITECTURE_OVERVIEW.md Section 8)
-- `backend/Dockerfile` - Container config
+- `backend/venv/` - Python virtual environment
 
 ### Frontend
 - `frontend/app.js` - Main logic (see FRONTEND_NEW.md)
@@ -327,7 +325,7 @@ When making changes:
 
 ### Deployment Issues
 - Local setup? See QUICKSTART.md
-- Docker setup? See README.md
+- Native Python setup? See README.md
 - Arch Linux? See ARCH_LINUX_GUIDE.md
 
 ---

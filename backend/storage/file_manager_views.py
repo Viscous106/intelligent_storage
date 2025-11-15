@@ -577,3 +577,185 @@ def get_storage_stats(request, admin_id):
             'success': False,
             'error': str(e)
         }, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@require_admin
+def batch_delete_files(request, admin_id):
+    """
+    Delete multiple files at once
+
+    Request body:
+    {
+        "file_paths": ["category/file1.jpg", "category/file2.pdf", ...]
+    }
+    """
+    try:
+        storage = get_media_storage()
+
+        # Parse request body
+        data = json.loads(request.body)
+        file_paths = data.get('file_paths', [])
+
+        if not file_paths:
+            return JsonResponse({
+                'success': False,
+                'error': 'No files specified'
+            }, status=400)
+
+        if len(file_paths) > 100:
+            return JsonResponse({
+                'success': False,
+                'error': 'Maximum 100 files can be deleted at once'
+            }, status=400)
+
+        results = {
+            'deleted': [],
+            'failed': [],
+            'total': len(file_paths)
+        }
+
+        for file_path in file_paths:
+            try:
+                full_path = storage.base_path / file_path
+
+                # Check if file exists
+                if not full_path.exists():
+                    results['failed'].append({
+                        'path': file_path,
+                        'error': 'File not found'
+                    })
+                    continue
+
+                # Check admin access
+                if admin_id not in full_path.name:
+                    results['failed'].append({
+                        'path': file_path,
+                        'error': 'Access denied'
+                    })
+                    continue
+
+                # Delete file
+                file_size = full_path.stat().st_size
+                full_path.unlink()
+
+                # Delete thumbnails if image
+                category = full_path.relative_to(storage.base_path).parts[0]
+                if category in ['photos', 'gifs', 'webp', 'icons']:
+                    for size in ['small', 'medium', 'large']:
+                        thumb_name = f"{full_path.stem}_{size}.jpg"
+                        thumb_path = storage.thumbnails_path / thumb_name
+                        if thumb_path.exists():
+                            thumb_path.unlink()
+
+                results['deleted'].append({
+                    'path': file_path,
+                    'size': file_size
+                })
+
+            except Exception as e:
+                logger.error(f"Error deleting {file_path}: {e}")
+                results['failed'].append({
+                    'path': file_path,
+                    'error': str(e)
+                })
+
+        logger.info(f"Batch delete: {len(results['deleted'])} succeeded, {len(results['failed'])} failed")
+
+        return JsonResponse({
+            'success': True,
+            'results': results
+        })
+
+    except Exception as e:
+        logger.error(f"Error in batch delete: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@require_admin
+def batch_download_files(request, admin_id):
+    """
+    Download multiple files as a ZIP archive
+
+    Request body:
+    {
+        "file_paths": ["category/file1.jpg", "category/file2.pdf", ...],
+        "archive_name": "optional_name.zip"
+    }
+    """
+    try:
+        import zipfile
+        import io
+
+        storage = get_media_storage()
+
+        # Parse request body
+        data = json.loads(request.body)
+        file_paths = data.get('file_paths', [])
+        archive_name = data.get('archive_name', 'download.zip')
+
+        if not file_paths:
+            return JsonResponse({
+                'success': False,
+                'error': 'No files specified'
+            }, status=400)
+
+        if len(file_paths) > 1000:
+            return JsonResponse({
+                'success': False,
+                'error': 'Maximum 1000 files can be downloaded at once'
+            }, status=400)
+
+        # Create ZIP file in memory
+        zip_buffer = io.BytesIO()
+
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            added_count = 0
+
+            for file_path in file_paths:
+                try:
+                    full_path = storage.base_path / file_path
+
+                    # Check if file exists
+                    if not full_path.exists():
+                        continue
+
+                    # Check admin access
+                    if admin_id not in full_path.name:
+                        continue
+
+                    # Add file to ZIP
+                    zip_file.write(full_path, arcname=full_path.name)
+                    added_count += 1
+
+                except Exception as e:
+                    logger.error(f"Error adding {file_path} to ZIP: {e}")
+                    continue
+
+        if added_count == 0:
+            return JsonResponse({
+                'success': False,
+                'error': 'No valid files found to download'
+            }, status=404)
+
+        # Prepare response
+        zip_buffer.seek(0)
+        response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="{archive_name}"'
+
+        logger.info(f"Batch download: {added_count} files in {archive_name}")
+
+        return response
+
+    except Exception as e:
+        logger.error(f"Error in batch download: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)

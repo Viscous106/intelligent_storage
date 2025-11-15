@@ -136,6 +136,25 @@ class FileUploadView(APIView):
                 relative_path=self._get_relative_path(final_path),
             )
 
+            # Auto-index file for fuzzy search
+            try:
+                from .trie_fuzzy_search import trie_search_engine
+                file_dict = {
+                    'id': media_file.id,
+                    'name': media_file.original_name,
+                    'type': media_file.detected_type or 'other',
+                    'size': media_file.file_size or 0,
+                    'uploaded_at': media_file.uploaded_at.isoformat() if media_file.uploaded_at else None,
+                    'tags': media_file.ai_tags or [],
+                    'extension': media_file.file_extension or '',
+                    'path': media_file.relative_path or media_file.file_path,
+                }
+                trie_search_engine.index_file(file_dict)
+                logger.info(f"Auto-indexed file {media_file.id} for search")
+            except Exception as e:
+                logger.warning(f"Failed to auto-index file: {e}")
+                # Don't fail the upload if indexing fails
+
             return Response(
                 {
                     'success': True,
@@ -268,6 +287,23 @@ class BatchFileUploadView(APIView):
                     storage_subcategory=subcategory,
                     relative_path=FileUploadView()._get_relative_path(final_path),
                 )
+
+                # Auto-index file for fuzzy search
+                try:
+                    from .trie_fuzzy_search import trie_search_engine
+                    file_dict = {
+                        'id': media_file.id,
+                        'name': media_file.original_name,
+                        'type': media_file.detected_type or 'other',
+                        'size': media_file.file_size or 0,
+                        'uploaded_at': media_file.uploaded_at.isoformat() if media_file.uploaded_at else None,
+                        'tags': media_file.ai_tags or [],
+                        'extension': media_file.file_extension or '',
+                        'path': media_file.relative_path or media_file.file_path,
+                    }
+                    trie_search_engine.index_file(file_dict)
+                except Exception as idx_err:
+                    logger.warning(f"Failed to auto-index file {media_file.id}: {idx_err}")
 
                 results.append({
                     'file': uploaded_file.name,

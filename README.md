@@ -2,27 +2,27 @@
 
 A professional, AI-powered storage system that intelligently processes and organizes any type of data with a unified frontend interface.
 
-## 🐳 Quick Start with Docker (Recommended)
+## 🚀 Quick Start
 
-**Works on Windows, Mac, and Linux with ONE command!**
-
-### Windows
-```cmd
-git clone https://github.com/yourusername/intelligent_storage.git
-cd intelligent_storage
-start.bat
-```
-
-### Linux / macOS
 ```bash
+# Clone the repository
 git clone https://github.com/yourusername/intelligent_storage.git
 cd intelligent_storage
-./start.sh
+
+# Setup backend
+cd backend
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+# Run migrations
+python manage.py migrate
+
+# Start the server
+python manage.py runserver
 ```
 
-**That's it!** Docker handles all dependencies automatically.
-
-📖 **Full Docker Guide**: See [DOCKER_README.md](DOCKER_README.md) for complete instructions.
+Open browser: `http://localhost:8000`
 
 ---
 
@@ -56,11 +56,10 @@ intelligent_storage/
 │   │   ├── ai_analyzer.py      # Ollama/AI integration
 │   │   └── db_manager.py       # Database management
 │   └── manage.py
-├── frontend/               # Frontend Interface
-│   ├── index.html         # Main HTML
-│   ├── styles.css         # Styling
-│   └── app.js             # JavaScript logic
-└── docker-compose.yml     # Docker services
+└── frontend/               # Frontend Interface
+    ├── index.html         # Main HTML
+    ├── styles.css         # Styling
+    └── app.js             # JavaScript logic
 ```
 
 ## Prerequisites
@@ -389,30 +388,7 @@ Then open http://localhost:3000 in your browser!
 
 ---
 
-### Option 1: Docker Setup (Recommended for Testing)
-
-1. **Start all services**:
-   ```bash
-   cd intelligent_storage
-   docker-compose up -d
-   ```
-
-2. **Access the application**:
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:8000
-   - Admin Panel: http://localhost:8000/admin
-
-3. **View logs**:
-   ```bash
-   docker-compose logs -f backend
-   ```
-
-4. **Stop services**:
-   ```bash
-   docker-compose down
-   ```
-
-### Option 2: Manual Setup (Recommended for Development)
+### Setup Instructions
 
 #### Backend Setup
 

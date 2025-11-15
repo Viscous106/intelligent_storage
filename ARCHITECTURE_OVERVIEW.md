@@ -36,7 +36,6 @@ intelligent_storage/
 │   │   └── others/
 │   ├── manage.py                    # Django management command
 │   ├── requirements.txt             # Python dependencies
-│   ├── Dockerfile                   # Container configuration
 │   └── venv/                        # Python virtual environment
 ├── frontend/                         # Vanilla JavaScript Frontend
 │   ├── index.html                  # Main HTML page
@@ -45,7 +44,6 @@ intelligent_storage/
 │   ├── package.json                # NPM metadata
 │   ├── vite.config.js              # Vite build configuration
 │   └── node_modules/               # NPM dependencies
-├── docker-compose.yml              # Multi-container orchestration
 └── README.md                        # Complete documentation
 ```
 
@@ -57,7 +55,7 @@ intelligent_storage/
 - **Django 5.0.1** - Web framework
 - **Django REST Framework 3.14.0** - RESTful API development
 - **Python 3.13** - Runtime
-- **Gunicorn/Uvicorn** - WSGI/ASGI servers (via Docker)
+- **Gunicorn/Uvicorn** - WSGI/ASGI servers (production)
 
 ### Application Design Pattern
 - **Django Apps**: Modular application structure
@@ -186,7 +184,7 @@ media/
 - **PostgreSQL**: Django ORM with connection pooling
 - **MongoDB**: PyMongo client with singleton pattern
 - **File System**: Direct OS operations with path validation
-- **Redis**: Connection pool for Celery task queue (docker-compose)
+- **Redis**: Connection pool for Celery task queue (optional)
 
 ---
 
@@ -644,7 +642,6 @@ backend/
 ├── manage.py                    # Django CLI
 ├── requirements.txt             # Python dependencies
 ├── requirements_minimal.txt     # Minimal dependencies
-├── Dockerfile
 ├── venv/                        # Virtual environment
 └── __pycache__/
 ```
@@ -656,7 +653,6 @@ backend/
 |------|---------|------------|
 | `core/settings.py` | Django configuration | DATABASES, INSTALLED_APPS, MIDDLEWARE, CORS, STORAGE_DIRS |
 | `core/urls.py` | URL routing | Include storage.urls, media serving |
-| `docker-compose.yml` | Container orchestration | 5 services (Postgres, MongoDB, Redis, Django, Frontend) |
 | `requirements.txt` | Python dependencies | 30+ packages (Django, DRF, AI, Database, etc.) |
 
 #### Model Definitions
@@ -797,13 +793,9 @@ No Framework Dependencies (minimalist approach)
 
 ### Infrastructure
 ```
-Containers:
-├── Docker
-└── Docker Compose
-
 Servers:
 ├── Gunicorn/Uvicorn (Django WSGI/ASGI)
-└── Node.js (Frontend dev server)
+└── Node.js (Frontend dev server - development only)
 
 Monitoring (optional):
 └── Health check endpoints

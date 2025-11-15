@@ -256,7 +256,7 @@ After setup, check out:
 
 All platforms are production-ready, but:
 - **Ubuntu/Debian** - Most common for servers
-- **Docker** - Consider containerization (coming soon)
+- **Native Python** - Simpler deployment with virtual environments
 
 ### For Testing
 
