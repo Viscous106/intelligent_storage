@@ -6,6 +6,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from . import views
+from .unified_upload import UnifiedFileUploadView
 
 # Create a router for ViewSets
 router = DefaultRouter()
@@ -18,9 +19,10 @@ urlpatterns = [
     # ViewSet routes
     path('', include(router.urls)),
 
-    # File upload endpoints
-    path('upload/file/', views.FileUploadView.as_view(), name='file-upload'),
-    path('upload/batch/', views.BatchFileUploadView.as_view(), name='batch-upload'),
+    # Unified file upload endpoint (handles both single and multiple files)
+    path('upload/file/', UnifiedFileUploadView.as_view(), name='file-upload'),
+    # Legacy batch endpoint (redirects to unified)
+    path('upload/batch/', UnifiedFileUploadView.as_view(), name='batch-upload'),
 
     # JSON data upload
     path('upload/json/', views.JSONDataUploadView.as_view(), name='json-upload'),

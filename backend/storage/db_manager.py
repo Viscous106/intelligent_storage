@@ -265,8 +265,10 @@ class DatabaseManager:
         # Add metadata columns
         columns.append('created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
 
+        # Join columns with newlines (can't use \n in f-string)
+        columns_str = ',\n    '.join(columns)
         create_sql = f"""CREATE TABLE IF NOT EXISTS {table_name} (
-    {',\n    '.join(columns)}
+    {columns_str}
 );"""
 
         with connection.cursor() as cursor:
