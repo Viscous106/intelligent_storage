@@ -1,5 +1,5 @@
 """
-Intelligent Search Suggestion System
+Intelligent Search Suggestion System(future implementation)
 
 Combines multiple strategies for smart search suggestions:
 1. Search history tracking - Learns from user behavior
