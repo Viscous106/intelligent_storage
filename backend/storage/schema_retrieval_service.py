@@ -1,5 +1,5 @@
 """
-Schema Retrieval Service
+Schema Retrieval Service(Future implementation)
 
 Provides intelligent schema retrieval with:
 - Date range filtering
