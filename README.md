@@ -127,33 +127,33 @@ The **Intelligent Multi-Modal Storage System** is a next-generation storage plat
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         Frontend Layer                              │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐             │
-│  │   Web UI     │  │ File Browser │  │ File Manager │             │
-│  │ (Vanilla JS) │  │   Interface  │  │   Interface  │             │
-│  └──────────────┘  └──────────────┘  └──────────────┘             │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐               │
+│  │   Web UI     │  │ File Browser │  │ File Manager │               │
+│  │ (Vanilla JS) │  │   Interface  │  │   Interface  │               │
+│  └──────────────┘  └──────────────┘  └──────────────┘               │
 └────────────────────────────┬────────────────────────────────────────┘
                              │ HTTP/REST API
 ┌────────────────────────────┴────────────────────────────────────────┐
 │                      Django Backend (API Layer)                     │
-│  ┌──────────────────────────────────────────────────────────────┐  │
-│  │                  URL Routing & Views                         │  │
-│  │  • Storage API  • Smart Upload  • File Manager  • RAG        │  │
-│  └──────────────────────────────────────────────────────────────┘  │
-│  ┌──────────────────────────────────────────────────────────────┐  │
-│  │                    Business Logic Layer                      │  │
-│  │ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌───────────┐ │  │
-│  │ │   File     │ │   JSON     │ │    AI      │ │    RAG    │ │  │
-│  │ │  Detector  │ │  Analyzer  │ │  Analyzer  │ │  Service  │ │  │
-│  │ └────────────┘ └────────────┘ └────────────┘ └───────────┘ │  │
-│  │ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌───────────┐ │  │
-│  │ │    DB      │ │   Smart    │ │  Chunking  │ │ Embedding │ │  │
-│  │ │  Manager   │ │   Router   │ │  Service   │ │  Service  │ │  │
-│  │ └────────────┘ └────────────┘ └────────────┘ └───────────┘ │  │
-│  │ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌───────────┐ │  │
-│  │ │   Fuzzy    │ │   Search   │ │   File     │ │   Query   │ │  │
-│  │ │   Search   │ │ Suggestion │ │ Organizer  │ │  Builder  │ │  │
-│  │ └────────────┘ └────────────┘ └────────────┘ └───────────┘ │  │
-│  └──────────────────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │                  URL Routing & Views                         │   │
+│  │  • Storage API  • Smart Upload  • File Manager  • RAG        │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │                    Business Logic Layer                      │   │
+│  │ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌───────────┐   │   │
+│  │ │   File     │ │   JSON     │ │    AI      │ │    RAG    │   │   │
+│  │ │  Detector  │ │  Analyzer  │ │  Analyzer  │ │  Service  │   │   │
+│  │ └────────────┘ └────────────┘ └────────────┘ └───────────┘   │   │
+│  │ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌───────────┐   │   │
+│  │ │    DB      │ │   Smart    │ │  Chunking  │ │ Embedding │   │   │
+│  │ │  Manager   │ │   Router   │ │  Service   │ │  Service  │   │   │
+│  │ └────────────┘ └────────────┘ └────────────┘ └───────────┘   │   │
+│  │ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌───────────┐   │   │
+│  │ │   Fuzzy    │ │   Search   │ │   File     │ │   Query   │   │   │
+│  │ │   Search   │ │ Suggestion │ │ Organizer  │ │  Builder  │   │   │
+│  │ └────────────┘ └────────────┘ └────────────┘ └───────────┘   │   │  
+│  └──────────────────────────────────────────────────────────────┘   │
 └────────────────────────────┬────────────────────────────────────────┘
                              │
         ┌────────────────────┼────────────────────┬───────────────┐
@@ -191,10 +191,10 @@ The **Intelligent Multi-Modal Storage System** is a next-generation storage plat
 └─────┬───────────┘       └──────────────┘
       │ 3. Analyze Content
       ▼
-┌─────────────────┐       ┌──────────────┐
-│  AIAnalyzer     │──────▶│   Ollama     │
-└─────┬───────────┘       │  Gemma/Llama3│
-      │ 4. Classify       └──────────────┘
+┌─────────────────┐
+│    Analyzer     │
+└─────┬───────────┘       
+      │ 4. Classify       
       ▼
 ┌─────────────────┐
 │ SmartFolder     │
@@ -243,7 +243,7 @@ The **Intelligent Multi-Modal Storage System** is a next-generation storage plat
 └────┬────────┬───┘
      │        │
      │        └──────────────┐
-     │ 5a. SQL              │ 5b. NoSQL
+     │ 5a. SQL               │ 5b. NoSQL
      ▼                       ▼
 ┌──────────────┐      ┌──────────────┐
 │ PostgreSQL   │      │   MongoDB    │
@@ -261,7 +261,7 @@ The **Intelligent Multi-Modal Storage System** is a next-generation storage plat
 └─────────────────────────────┘
 ```
 
-#### **RAG Query Flow**
+#### **RAG Query Flow(Work In Progress)**
 
 ```
 ┌──────────┐
@@ -335,7 +335,7 @@ pymongo 4.6.1                  # MongoDB driver
 djongo 1.3.6                   # MongoDB ORM for Django
 ```
 
-### **AI & Machine Learning**
+### **AI & Machine Learning(Future Implementation)**
 
 ```
 Ollama 0.1.6                   # Local LLM runtime
@@ -352,7 +352,7 @@ python-magic 0.4.27            # File type detection
 Pillow 10.2.0                  # Image processing
 ```
 
-### **Authentication & Security**
+### **Authentication & Security(Future Implementation)**
 
 ```
 djangorestframework-simplejwt 5.3.1    # JWT tokens
@@ -364,9 +364,9 @@ PyJWT 2.8.0                            # JWT encoding/decoding
 ### **Data Processing**
 
 ```
-jsonschema 4.21.1              # JSON validation
-marshmallow 3.20.2             # Object serialization
-ijson 3.2.3                    # Streaming JSON parser
+Custom schema inference and manual validation logic      # JSON validation
+Django REST Framework's built-in serializers             # Object serialization
+ijson 3.2.3                                              # Streaming JSON parser
 ```
 
 ### **Task Queue & Caching**
@@ -379,6 +379,7 @@ redis 5.0.1                    # Caching & message broker
 ### **Storage & Cloud**
 
 ```
+Local Storage                  # Convert to Cloud in Future
 django-storages 1.14.2         # Cloud storage backends
 ```
 
@@ -449,7 +450,7 @@ sudo pacman -S python python-pip file
 ollama pull gemma:2b              # Required - default text model
 ollama pull nomic-embed-text      # Required - for embeddings/RAG
 ollama pull llama3:latest         # Optional - alternative text model
-ollama pull llama3.2-vision       # Optional - for image analysis
+ollama pull llama3.2-vision       # Optional - for image analysis(future implementation)
 ```
 
 </details>
@@ -516,7 +517,7 @@ brew install python@3.11 libmagic
 ollama pull gemma:2b              # Required - default text model
 ollama pull nomic-embed-text      # Required - for embeddings/RAG
 ollama pull llama3:latest         # Optional - alternative text model
-ollama pull llama3.2-vision       # Optional - for image analysis
+ollama pull llama3.2-vision       # Optional - for image analysis(future implementation)
 ```
 
 </details>
@@ -535,7 +536,7 @@ ollama pull llama3.2-vision       # Optional - for image analysis
 ollama pull gemma:2b              # Required - default text model
 ollama pull nomic-embed-text      # Required - for embeddings/RAG
 ollama pull llama3:latest         # Optional - alternative text model
-ollama pull llama3.2-vision       # Optional - for image analysis
+ollama pull llama3.2-vision       # Optional - for image analysis(future implementation)
 ```
 
 </details>
@@ -722,7 +723,7 @@ curl http://localhost:8000/api/health/
 
 ---
 
-## 📁 Project Structure
+## 📁 Project Structure(Applied But Some Features are in Progress)
 
 ```
 intelligent_storage/
@@ -763,10 +764,10 @@ intelligent_storage/
 │   │   │   └── query_builder.py         # Query construction
 │   │   │
 │   │   ├── 🔍 Search Services
-│   │   │   ├── fuzzy_search_views.py           # Trie-based fuzzy search
-│   │   │   ├── trie_fuzzy_search.py            # Trie implementation
-│   │   │   ├── intelligent_search_suggestions.py  # ML search suggestions
-│   │   │   └── search_suggestion_views.py      # Suggestion API
+│   │   │   ├── fuzzy_search_views.py               # Trie-based fuzzy search
+│   │   │   ├── trie_fuzzy_search.py                # Trie implementation
+│   │   │   ├── intelligent_search_suggestions.py   # ML search suggestions
+│   │   │   └── search_suggestion_views.py          # Suggestion API
 │   │   │
 │   │   ├── 🌐 Upload Systems
 │   │   │   ├── unified_upload.py        # Unified file upload
@@ -844,13 +845,13 @@ intelligent_storage/
 
 | Component                       | Purpose                         | Technologies                              |
 | ------------------------------- | ------------------------------- | ----------------------------------------- |
-| **file_detector.py**      | Multi-layer file type detection | python-magic, MIME types, extensions      |
-| **ai_analyzer.py**        | AI-powered content analysis     | Ollama, Gemma:2b, Llama3, Llama3.2-vision |
-| **rag_service.py**        | Semantic search and RAG queries | pgvector, nomic-embed-text, Gemma/Llama3  |
-| **chunking_service.py**   | Document chunking strategies    | Auto, semantic, whitespace, fixed         |
-| **smart_db_selector.py**  | Intelligent database selection  | JSON analysis, depth calculation          |
-| **fuzzy_search_views.py** | Typo-tolerant search            | Trie data structure, edit distance        |
-| **file_browser_views.py** | Web-based file explorer         | Django templates, REST API                |
+| **file_detector.py**            | Multi-layer file type detection | python-magic, MIME types, extensions      |
+| **ai_analyzer.py**              | AI-powered content analysis     | Ollama, Gemma:2b, Llama3, Llama3.2-vision |
+| **rag_service.py**              | Semantic search and RAG queries | pgvector, nomic-embed-text, Gemma/Llama3  |
+| **chunking_service.py**         | Document chunking strategies    | Auto, semantic, whitespace, fixed         |
+| **smart_db_selector.py**        | Intelligent database selection  | JSON analysis, depth calculation          |
+| **fuzzy_search_views.py**       | Typo-tolerant search            | Trie data structure, edit distance        |
+| **file_browser_views.py**       | Web-based file explorer         | Django templates, REST API                |
 
 ---
 
@@ -1430,9 +1431,9 @@ Response: 200 OK
 }
 ```
 
-#### 💬 RAG Query (Question Answering)
+#### 💬 RAG Query (Question Answering)(Future Implementation)
 
-**Ask Question with Context**
+**Ask Question with Context(Work-in-progress)**
 
 ```http
 POST /api/rag/query/
@@ -1491,7 +1492,7 @@ Response: 200 OK
 }
 ```
 
-#### 📊 RAG Statistics
+#### 📊 RAG Statistics(Ideas for Scaling it up)
 
 **Get RAG Stats**
 
@@ -1787,7 +1788,7 @@ Response: ZIP file download
 
 ### 5. Authentication Endpoints
 
-#### 👤 User Registration & Login
+#### 👤 User Registration & Login(Future Implementation)
 
 **Register User**
 
@@ -1979,33 +1980,7 @@ MONGODB_SETTINGS = {
 
 ## 💡 Usage Examples
 
-### Example 1: Upload and Analyze Images
-
-```python
-import requests
-
-# Upload images with AI analysis
-files = [
-    ('files', open('vacation/beach.jpg', 'rb')),
-    ('files', open('vacation/mountains.jpg', 'rb')),
-]
-
-response = requests.post(
-    'http://localhost:8000/api/upload/file/',
-    files=files,
-    data={'user_comment': 'Vacation photos from summer 2025'}
-)
-
-result = response.json()
-for file_result in result['results']:
-    print(f"File: {file_result['original_name']}")
-    print(f"AI Category: {file_result['ai_category']}")
-    print(f"Description: {file_result['ai_description']}")
-    print(f"Tags: {', '.join(file_result['ai_tags'])}")
-    print(f"Stored at: {file_result['storage_path']}\n")
-```
-
-### Example 2: Smart JSON Storage
+### Example 1: Smart JSON Storage
 
 ```python
 import requests
@@ -2033,36 +2008,7 @@ print(f"Reasoning: {result['ai_reasoning']}")
 print(f"Schema: {json.dumps(result['schema'], indent=2)}")
 ```
 
-### Example 3: RAG Question Answering
-
-```python
-import requests
-
-# Step 1: Index documents
-file_ids = [1, 2, 3, 4, 5]  # Your uploaded document IDs
-for file_id in file_ids:
-    requests.post(f'http://localhost:8000/api/rag/index/{file_id}/')
-
-# Step 2: Ask questions
-response = requests.post(
-    'http://localhost:8000/api/rag/query/',
-    json={
-        'query': 'How do I configure the database connection?',
-        'top_k': 5,
-        'include_sources': True
-    }
-)
-
-result = response.json()
-print(f"Question: {result['query']}\n")
-print(f"Answer: {result['answer']}\n")
-print("Sources:")
-for citation in result['citations']:
-    print(f"  - {citation['source_file']}, page {citation['page']}")
-    print(f"    Relevance: {citation['relevance_score']:.2%}")
-```
-
-### Example 4: Fuzzy Search
+### Example 2: Fuzzy Search
 
 ```python
 import requests
@@ -2082,7 +2028,7 @@ for file in results['results']:
     print(f"{file['file_name']} (score: {file['score']:.2f})")
 ```
 
-### Example 5: Create and Use File Search Store
+### Example 3: Create and Use File Search Store
 
 ```python
 import requests
@@ -2186,7 +2132,7 @@ POST /files/api/restore/123/
 DELETE /files/api/permanent-delete/123/
 ```
 
-### 5. Storage Quotas
+### 5. Storage Quotas(to be implemented)
 
 Users have storage quotas with usage tracking:
 
@@ -2221,7 +2167,7 @@ ollama list
 ollama pull gemma:2b              # Required
 ollama pull nomic-embed-text      # Required
 ollama pull llama3:latest         # Optional
-ollama pull llama3.2-vision       # Optional
+ollama pull llama3.2-vision       # Optional(work-in-progress)
 ```
 
 #### 2. **PostgreSQL Connection Refused**

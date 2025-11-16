@@ -5,7 +5,7 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from pgvector.django import VectorField
 import uuid
 
-
+"""User model for multi-user authentication and storage isolation is planned for the future"""
 class UserManager(BaseUserManager):
     """Custom user manager for User model"""
 

@@ -1,5 +1,5 @@
 """
-Multi-User Authentication System
+Multi-User Authentication System(Future Implementation(work-in-progress))
 
 Provides JWT-based authentication for regular users with:
 - User registration
