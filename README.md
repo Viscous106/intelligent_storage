@@ -34,8 +34,8 @@
 - [API Reference](#-api-reference)
   - [Storage API](#1-storage-api)
   - [Smart Upload System](#2-smart-upload-system-apismartapi-smart)
-  - [RAG & Semantic Search](#3-rag--semantic-search)
-  - [File Browser & Manager](#4-file-browser--manager)
+  - [RAG &amp; Semantic Search](#3-rag--semantic-search)
+  - [File Browser &amp; Manager](#4-file-browser--manager)
   - [Authentication](#5-authentication-endpoints)
 - [Configuration](#-configuration)
 - [Usage Examples](#-usage-examples)
@@ -68,6 +68,7 @@ The **Intelligent Multi-Modal Storage System** is a next-generation storage plat
 ### 🎯 Core Capabilities
 
 #### **1. Intelligent Media Management**
+
 - 🔍 **Multi-Layer File Detection**: Magic bytes, MIME types, and extension analysis
 - 🤖 **AI Categorization**: Gemma/Llama3-powered content analysis for images, documents, and code
 - 📁 **Auto-Organization**: Hierarchical folder structure (type → subcategory → files)
@@ -76,6 +77,7 @@ The **Intelligent Multi-Modal Storage System** is a next-generation storage plat
 - 🗑️ **Trash System**: Soft delete with restore capabilities
 
 #### **2. Smart JSON Data Storage**
+
 - 🧠 **Automatic SQL/NoSQL Detection**: AI analyzes structure depth, nesting, and consistency
 - 🗄️ **Dual Database Support**: PostgreSQL for relational, MongoDB for document data
 - 📋 **Dynamic Schema Generation**: Auto-creates appropriate database schemas
@@ -84,6 +86,7 @@ The **Intelligent Multi-Modal Storage System** is a next-generation storage plat
 - 🔍 **Advanced Querying**: Complex filters, aggregations, and range queries
 
 #### **3. RAG (Retrieval Augmented Generation)**
+
 - 🧩 **Document Chunking**: Multiple strategies (auto, whitespace, semantic, fixed-size)
 - 🔢 **Vector Embeddings**: pgvector integration with 768-dimensional embeddings
 - 🎯 **Semantic Search**: Find relevant chunks by meaning with similarity scoring
@@ -92,6 +95,7 @@ The **Intelligent Multi-Modal Storage System** is a next-generation storage plat
 - 💬 **Context-Aware Queries**: AI responses grounded in your documents using Gemma/Llama3
 
 #### **4. Advanced Search**
+
 - 🔎 **Fuzzy Search**: Trie-based autocomplete with typo tolerance
 - 🧠 **Intelligent Suggestions**: ML-powered search recommendations
 - 📊 **Search Analytics**: Query tracking and trending searches
@@ -99,6 +103,7 @@ The **Intelligent Multi-Modal Storage System** is a next-generation storage plat
 - ⚡ **Real-Time Indexing**: Instant search index updates
 
 #### **5. User Management**
+
 - 👤 **Multi-User Support**: Complete user authentication system
 - 🔒 **JWT Authentication**: Secure token-based auth
 - 💾 **Storage Quotas**: Per-user storage limits (default 5GB)
@@ -106,6 +111,7 @@ The **Intelligent Multi-Modal Storage System** is a next-generation storage plat
 - 📊 **Usage Tracking**: Monitor storage consumption per user
 
 #### **6. File Browser**
+
 - 🌲 **Tree Navigation**: Hierarchical folder browsing
 - 📥 **Batch Operations**: Multi-file download and delete
 - 📈 **Statistics Dashboard**: Storage analytics by type
@@ -221,10 +227,10 @@ The **Intelligent Multi-Modal Storage System** is a next-generation storage plat
 └─────┬───────────┘
       │ 2. Analyze Structure
       ▼
-┌─────────────────┐       ┌──────────────┐
-│  JSONAnalyzer   │──────▶│   Ollama     │
-└─────┬───────────┘       │  Gemma/Llama3│
-      │ 3. Recommend DB   └──────────────┘
+┌─────────────────┐  
+│  JSONAnalyzer   |
+└─────┬───────────┘   
+      │ 3. Recommend DB   
       ▼
 ┌─────────────────┐
 │  SmartDB        │
@@ -300,6 +306,7 @@ The **Intelligent Multi-Modal Storage System** is a next-generation storage plat
 ## 🛠️ Technology Stack
 
 ### **Backend Framework**
+
 ```
 Django 5.0.1                    # Web framework
 Django REST Framework 3.14.0    # API development
@@ -307,6 +314,7 @@ django-cors-headers 4.3.1       # CORS handling
 ```
 
 ### **Databases**
+
 ```
 PostgreSQL 15+                  # Primary relational database
   • pgvector extension          # Vector similarity search
@@ -320,6 +328,7 @@ MongoDB 7.0+                    # NoSQL document database
 ```
 
 ### **Database Drivers & ORMs**
+
 ```
 psycopg2-binary 2.9.9          # PostgreSQL adapter
 pymongo 4.6.1                  # MongoDB driver
@@ -327,6 +336,7 @@ djongo 1.3.6                   # MongoDB ORM for Django
 ```
 
 ### **AI & Machine Learning**
+
 ```
 Ollama 0.1.6                   # Local LLM runtime
   • gemma:2b                   # Text analysis & generation (default)
@@ -336,12 +346,14 @@ Ollama 0.1.6                   # Local LLM runtime
 ```
 
 ### **File Processing**
+
 ```
 python-magic 0.4.27            # File type detection
 Pillow 10.2.0                  # Image processing
 ```
 
 ### **Authentication & Security**
+
 ```
 djangorestframework-simplejwt 5.3.1    # JWT tokens
 django-allauth 0.57.0                  # Social auth
@@ -350,6 +362,7 @@ PyJWT 2.8.0                            # JWT encoding/decoding
 ```
 
 ### **Data Processing**
+
 ```
 jsonschema 4.21.1              # JSON validation
 marshmallow 3.20.2             # Object serialization
@@ -357,23 +370,27 @@ ijson 3.2.3                    # Streaming JSON parser
 ```
 
 ### **Task Queue & Caching**
+
 ```
 celery 5.3.6                   # Async task processing
 redis 5.0.1                    # Caching & message broker
 ```
 
 ### **Storage & Cloud**
+
 ```
 django-storages 1.14.2         # Cloud storage backends
 ```
 
 ### **Development Tools**
+
 ```
 django-extensions 3.2.3        # Enhanced management commands
 python-dotenv 1.0.0            # Environment variables
 ```
 
 ### **Frontend**
+
 ```
 HTML5                          # Semantic markup
 CSS3                           # Modern styling with gradients
@@ -382,6 +399,7 @@ Fetch API                      # HTTP requests
 ```
 
 ### **System Requirements**
+
 ```
 Python 3.10+                   # Runtime
 libmagic                       # File type detection library
@@ -580,6 +598,7 @@ chmod +x start.sh stop.sh status.sh
 #### **Step 1: Database Configuration**
 
 **PostgreSQL Setup:**
+
 ```bash
 # Create database and user
 sudo -u postgres psql << 'EOF'
@@ -595,6 +614,7 @@ EOF
 ```
 
 **MongoDB Setup (Optional for NoSQL features):**
+
 ```bash
 # Start MongoDB without auth for development
 # (Already started if you followed prerequisites)
@@ -822,15 +842,15 @@ intelligent_storage/
 
 ### Key Components Explained
 
-| Component | Purpose | Technologies |
-|-----------|---------|--------------|
-| **file_detector.py** | Multi-layer file type detection | python-magic, MIME types, extensions |
-| **ai_analyzer.py** | AI-powered content analysis | Ollama, Gemma:2b, Llama3, Llama3.2-vision |
-| **rag_service.py** | Semantic search and RAG queries | pgvector, nomic-embed-text, Gemma/Llama3 |
-| **chunking_service.py** | Document chunking strategies | Auto, semantic, whitespace, fixed |
-| **smart_db_selector.py** | Intelligent database selection | JSON analysis, depth calculation |
-| **fuzzy_search_views.py** | Typo-tolerant search | Trie data structure, edit distance |
-| **file_browser_views.py** | Web-based file explorer | Django templates, REST API |
+| Component                       | Purpose                         | Technologies                              |
+| ------------------------------- | ------------------------------- | ----------------------------------------- |
+| **file_detector.py**      | Multi-layer file type detection | python-magic, MIME types, extensions      |
+| **ai_analyzer.py**        | AI-powered content analysis     | Ollama, Gemma:2b, Llama3, Llama3.2-vision |
+| **rag_service.py**        | Semantic search and RAG queries | pgvector, nomic-embed-text, Gemma/Llama3  |
+| **chunking_service.py**   | Document chunking strategies    | Auto, semantic, whitespace, fixed         |
+| **smart_db_selector.py**  | Intelligent database selection  | JSON analysis, depth calculation          |
+| **fuzzy_search_views.py** | Typo-tolerant search            | Trie data structure, edit distance        |
+| **file_browser_views.py** | Web-based file explorer         | Django templates, REST API                |
 
 ---
 
@@ -843,6 +863,7 @@ Base URL: `http://localhost:8000`
 #### 🔼 File Upload
 
 **Single/Multiple File Upload**
+
 ```http
 POST /api/upload/file/
 Content-Type: multipart/form-data
@@ -873,6 +894,7 @@ Response: 201 Created
 ```
 
 **Example (curl):**
+
 ```bash
 curl -X POST http://localhost:8000/api/upload/file/ \
   -F "files=@/path/to/file1.pdf" \
@@ -883,6 +905,7 @@ curl -X POST http://localhost:8000/api/upload/file/ \
 #### 📊 JSON Data Upload
 
 **Upload JSON Data**
+
 ```http
 POST /api/upload/json/
 Content-Type: application/json
@@ -913,6 +936,7 @@ Response: 201 Created
 ```
 
 **Example (curl):**
+
 ```bash
 curl -X POST http://localhost:8000/api/upload/json/ \
   -H "Content-Type: application/json" \
@@ -929,6 +953,7 @@ curl -X POST http://localhost:8000/api/upload/json/ \
 #### 📋 List Media Files
 
 **Get All Files**
+
 ```http
 GET /api/media-files/
 Query Parameters:
@@ -960,6 +985,7 @@ Response: 200 OK
 #### 📈 Statistics
 
 **Get Storage Statistics**
+
 ```http
 GET /api/media-files/statistics/
 
@@ -985,6 +1011,7 @@ Response: 200 OK
 #### 🩺 Health Check
 
 **System Health**
+
 ```http
 GET /api/health/
 
@@ -1018,6 +1045,7 @@ Authenticated endpoints for advanced upload and retrieval.
 #### 🔐 Admin Authentication
 
 **Admin Login**
+
 ```http
 POST /api/smart/auth/login
 Content-Type: application/json
@@ -1037,6 +1065,7 @@ Response: 200 OK
 ```
 
 **Create Admin**
+
 ```http
 POST /api/smart/auth/create
 Content-Type: application/json
@@ -1052,6 +1081,7 @@ Body:
 #### 📤 Smart JSON Upload
 
 **Upload with Auto-Detection**
+
 ```http
 POST /api/smart/upload/json
 Authorization: Bearer <token>
@@ -1080,6 +1110,7 @@ Response: 201 Created
 ```
 
 **Upload JSON File**
+
 ```http
 POST /api/smart/upload/json/file
 Authorization: Bearer <token>
@@ -1093,6 +1124,7 @@ Body:
 #### 🔍 Advanced JSON Queries
 
 **Complex Query**
+
 ```http
 POST /api/smart/query/json
 Authorization: Bearer <token>
@@ -1123,6 +1155,7 @@ Response: 200 OK
 ```
 
 **Search JSON**
+
 ```http
 POST /api/smart/search/json
 Content-Type: application/json
@@ -1137,6 +1170,7 @@ Body:
 ```
 
 **Aggregate JSON**
+
 ```http
 POST /api/smart/aggregate/json
 Content-Type: application/json
@@ -1155,6 +1189,7 @@ Body:
 #### 📦 Retrieval
 
 **Retrieve Document**
+
 ```http
 GET /api/smart/retrieve/json/<doc_id>
 
@@ -1168,6 +1203,7 @@ Response: 200 OK
 ```
 
 **Retrieve Range**
+
 ```http
 GET /api/smart/retrieve/json/<doc_id>/range?start=0&end=100
 
@@ -1180,6 +1216,7 @@ Response: 200 OK
 ```
 
 **Retrieve Media**
+
 ```http
 GET /api/smart/retrieve/media/<file_id>
 
@@ -1195,6 +1232,7 @@ Response: 200 OK
 #### 📊 Schema Retrieval
 
 **List Schemas**
+
 ```http
 GET /api/smart/schemas/retrieve
 
@@ -1213,6 +1251,7 @@ Response: 200 OK
 ```
 
 **Download Schema**
+
 ```http
 GET /api/smart/schemas/download/<schema_id>
 
@@ -1221,6 +1260,7 @@ Content-Disposition: attachment; filename="users_schema.sql"
 ```
 
 **View Schema**
+
 ```http
 GET /api/smart/schemas/view/<schema_id>
 
@@ -1237,6 +1277,7 @@ Response: 200 OK
 #### 📚 File Search Stores (Gemini-Style)
 
 **Create File Search Store**
+
 ```http
 POST /api/file-search-stores/
 Content-Type: application/json
@@ -1263,6 +1304,7 @@ Response: 201 Created
 ```
 
 **List Stores**
+
 ```http
 GET /api/file-search-stores/
 
@@ -1285,6 +1327,7 @@ Response: 200 OK
 #### 🔍 Document Indexing
 
 **Index Single Document**
+
 ```http
 POST /api/rag/index/<file_id>/
 Content-Type: application/json
@@ -1310,6 +1353,7 @@ Response: 201 Created
 ```
 
 **Reindex All Documents**
+
 ```http
 POST /api/rag/reindex-all/
 
@@ -1326,6 +1370,7 @@ Response: 202 Accepted
 #### 🔎 Semantic Search
 
 **Basic Semantic Search**
+
 ```http
 POST /api/rag/search/
 Content-Type: application/json
@@ -1359,6 +1404,7 @@ Response: 200 OK
 ```
 
 **Search with Filters (Gemini-Style)**
+
 ```http
 POST /api/file-search/search/
 Content-Type: application/json
@@ -1387,6 +1433,7 @@ Response: 200 OK
 #### 💬 RAG Query (Question Answering)
 
 **Ask Question with Context**
+
 ```http
 POST /api/rag/query/
 Content-Type: application/json
@@ -1447,6 +1494,7 @@ Response: 200 OK
 #### 📊 RAG Statistics
 
 **Get RAG Stats**
+
 ```http
 GET /api/rag/stats/
 
@@ -1470,6 +1518,7 @@ Response: 200 OK
 #### 🌐 Web Interface
 
 **File Browser UI**
+
 ```http
 GET /files/browse/
 
@@ -1477,6 +1526,7 @@ Response: HTML page with file explorer
 ```
 
 **File Manager UI**
+
 ```http
 GET /api/filemanager/
 
@@ -1486,6 +1536,7 @@ Response: HTML page with file manager
 #### 📂 Browse Folders
 
 **Get Folder Structure**
+
 ```http
 GET /api/filemanager/folders/
 
@@ -1511,6 +1562,7 @@ Response: 200 OK
 ```
 
 **List Files in Category**
+
 ```http
 GET /api/filemanager/category/<category>/
 Example: GET /api/filemanager/category/images/
@@ -1537,6 +1589,7 @@ Response: 200 OK
 #### 🔍 Fuzzy Search
 
 **Search Files with Typo Tolerance**
+
 ```http
 POST /api/filemanager/fuzzy-search/
 Content-Type: application/json
@@ -1567,6 +1620,7 @@ Response: 200 OK
 ```
 
 **Initialize Search Index**
+
 ```http
 POST /api/filemanager/fuzzy-search/init/
 
@@ -1581,6 +1635,7 @@ Response: 200 OK
 #### 🧠 Intelligent Search Suggestions
 
 **Get Smart Suggestions**
+
 ```http
 GET /api/filemanager/search-suggestions/?q=fin
 
@@ -1610,6 +1665,7 @@ Response: 200 OK
 ```
 
 **Get Trending Searches**
+
 ```http
 GET /api/filemanager/search-suggestions/trending/
 
@@ -1627,6 +1683,7 @@ Response: 200 OK
 #### 📥 File Operations
 
 **Download File**
+
 ```http
 GET /api/filemanager/download/<path:file_path>/
 
@@ -1635,6 +1692,7 @@ Content-Disposition: attachment; filename="document.pdf"
 ```
 
 **Get File Preview**
+
 ```http
 GET /api/filemanager/preview/<path:file_path>/
 
@@ -1642,6 +1700,7 @@ Response: 200 OK (Preview HTML/Image/Text)
 ```
 
 **Get Thumbnail**
+
 ```http
 GET /api/filemanager/thumbnail/<path:file_path>/
 
@@ -1649,6 +1708,7 @@ Response: Image (JPEG thumbnail)
 ```
 
 **Delete File (Move to Trash)**
+
 ```http
 DELETE /files/api/delete/<file_id>/
 
@@ -1661,6 +1721,7 @@ Response: 200 OK
 ```
 
 **Permanent Delete**
+
 ```http
 DELETE /files/api/permanent-delete/<file_id>/
 
@@ -1672,6 +1733,7 @@ Response: 200 OK
 ```
 
 **Restore from Trash**
+
 ```http
 POST /files/api/restore/<file_id>/
 
@@ -1686,6 +1748,7 @@ Response: 200 OK
 #### 📦 Batch Operations
 
 **Batch Delete**
+
 ```http
 POST /api/filemanager/batch/delete/
 Content-Type: application/json
@@ -1707,6 +1770,7 @@ Response: 200 OK
 ```
 
 **Batch Download**
+
 ```http
 POST /api/filemanager/batch/download/
 Content-Type: application/json
@@ -1726,6 +1790,7 @@ Response: ZIP file download
 #### 👤 User Registration & Login
 
 **Register User**
+
 ```http
 POST /api/smart/users/register
 Content-Type: application/json
@@ -1751,6 +1816,7 @@ Response: 201 Created
 ```
 
 **Login**
+
 ```http
 POST /api/smart/users/login
 Content-Type: application/json
@@ -1777,6 +1843,7 @@ Response: 200 OK
 ```
 
 **Get User Profile**
+
 ```http
 GET /api/smart/users/profile
 Authorization: Bearer <token>
@@ -1796,6 +1863,7 @@ Response: 200 OK
 ```
 
 **Update Profile**
+
 ```http
 PUT /api/smart/users/profile/update
 Authorization: Bearer <token>
@@ -1809,6 +1877,7 @@ Body:
 ```
 
 **Change Password**
+
 ```http
 POST /api/smart/users/change-password
 Authorization: Bearer <token>
@@ -2265,16 +2334,16 @@ LOGGING = {
 
 ### Performance Benchmarks
 
-| Operation | Average Time | Notes |
-|-----------|--------------|-------|
-| File upload (10MB) | ~150ms | Excluding AI analysis |
-| AI categorization | ~800ms | Using Gemma:2b (or Llama3) |
-| Image analysis | ~1.2s | Using Llama3.2-vision (if available) |
-| JSON upload (1000 records) | ~300ms | SQL insertion |
-| Document indexing (50 pages) | ~3.5s | Chunking + embeddings |
-| Semantic search | ~100ms | Vector similarity with pgvector |
-| RAG query | ~2.5s | Retrieval + generation |
-| Fuzzy search | ~15ms | Trie-based search |
+| Operation                    | Average Time | Notes                                |
+| ---------------------------- | ------------ | ------------------------------------ |
+| File upload (10MB)           | ~150ms       | Excluding AI analysis                |
+| AI categorization            | ~800ms       | Using Gemma:2b (or Llama3)           |
+| Image analysis               | ~1.2s        | Using Llama3.2-vision (if available) |
+| JSON upload (1000 records)   | ~300ms       | SQL insertion                        |
+| Document indexing (50 pages) | ~3.5s        | Chunking + embeddings                |
+| Semantic search              | ~100ms       | Vector similarity with pgvector      |
+| RAG query                    | ~2.5s        | Retrieval + generation               |
+| Fuzzy search                 | ~15ms        | Trie-based search                    |
 
 ### Optimization Tips
 
@@ -2440,6 +2509,7 @@ MIT License - See [LICENSE](LICENSE) file for details.
 ## 🙏 Credits & Acknowledgments
 
 Built with:
+
 - **Django & Django REST Framework** - Web framework and API
 - **PostgreSQL & pgvector** - Relational database with vector search
 - **MongoDB** - NoSQL document database
@@ -2451,6 +2521,7 @@ Built with:
 - **Pillow** - Image processing
 
 Inspired by:
+
 - Google Gemini's File Search Stores
 - RAG architectures from LangChain
 - Modern file management systems

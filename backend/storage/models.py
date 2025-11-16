@@ -274,6 +274,13 @@ class MediaFile(models.Model):
         help_text="Custom key-value metadata for filtering searches"
     )
 
+    # Full document text (for reconstruction)
+    full_text = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Complete extracted text content from the document (stored for full retrieval)"
+    )
+
     # Indexing status
     is_indexed = models.BooleanField(default=False, help_text="Whether file has been indexed for search")
     indexed_at = models.DateTimeField(null=True, blank=True, help_text="When file was indexed")
@@ -298,6 +305,25 @@ class MediaFile(models.Model):
 
     def __str__(self):
         return f"{self.original_name} ({self.detected_type})"
+
+    def get_full_text(self):
+        """
+        Get the full document text.
+        Returns stored full_text if available, otherwise reconstructs from chunks.
+
+        Returns:
+            str: Complete document text
+        """
+        if self.full_text:
+            return self.full_text
+
+        # Fallback: reconstruct from chunks
+        chunks = self.chunks.order_by('chunk_index').values_list('chunk_text', flat=True)
+        if chunks:
+            # Join chunks with newline to preserve structure
+            return '\n\n'.join(chunks)
+
+        return ""
 
 class JSONDataStore(models.Model):
     """

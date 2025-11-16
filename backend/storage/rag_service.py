@@ -49,6 +49,10 @@ class RAGService:
                     'chunks_created': 0
                 }
 
+            # Store the full text in MediaFile for complete document retrieval
+            media_file.full_text = text
+            media_file.save(update_fields=['full_text'])
+
             # Create chunks
             chunks_data = self.chunking_service.chunk_text(
                 text,
@@ -139,24 +143,37 @@ class RAGService:
             # Perform vector similarity search
             results = queryset.order_by(
                 L2Distance('embedding', query_embedding)
-            )[:limit]
+            )[:limit * 3]  # Get more chunks to ensure we have enough unique files
 
-            # Format results
+            # Group by media file and return full documents
+            seen_files = {}
             search_results = []
-            for chunk in results:
-                # Calculate cosine similarity (approximate from L2 distance)
-                # Note: For exact cosine similarity, you'd use a different metric
 
-                result = {
-                    'chunk_id': chunk.id,
-                    'file_name': chunk.file_name,
-                    'file_type': chunk.file_type,
-                    'chunk_text': chunk.chunk_text,
-                    'chunk_index': chunk.chunk_index,
-                    'metadata': chunk.metadata,
-                    'media_file_id': chunk.media_file.id if chunk.media_file else None,
-                }
-                search_results.append(result)
+            for chunk in results:
+                if chunk.media_file:
+                    file_id = chunk.media_file.id
+
+                    # Skip if we already have this file and have enough results
+                    if file_id in seen_files:
+                        continue
+
+                    if len(search_results) >= limit:
+                        break
+
+                    # Get the full document text
+                    full_text = chunk.media_file.get_full_text()
+
+                    result = {
+                        'media_file_id': file_id,
+                        'file_name': chunk.file_name,
+                        'file_type': chunk.file_type,
+                        'full_text': full_text,
+                        'matched_chunk_index': chunk.chunk_index,
+                        'matched_chunk_text': chunk.chunk_text[:200] + '...' if len(chunk.chunk_text) > 200 else chunk.chunk_text,
+                        'metadata': chunk.metadata,
+                    }
+                    search_results.append(result)
+                    seen_files[file_id] = True
 
             # Save search query for analytics
             SearchQuery.objects.create(
@@ -199,8 +216,15 @@ class RAGService:
 
         context_parts = []
         for i, result in enumerate(results, 1):
+            # Use full text for better context, but truncate if too long
+            full_text = result.get('full_text', '')
+            if len(full_text) > 3000:  # Truncate very long documents
+                display_text = full_text[:3000] + "\n\n[...document truncated for brevity...]"
+            else:
+                display_text = full_text
+
             context_parts.append(
-                f"[Source {i}: {result['file_name']}]\n{result['chunk_text']}\n"
+                f"[Source {i}: {result['file_name']}]\n{display_text}\n"
             )
 
         return "\n---\n".join(context_parts)
@@ -248,6 +272,8 @@ Answer:"""
             ollama_host = settings.OLLAMA_SETTINGS['HOST']
             ollama_model = settings.OLLAMA_SETTINGS['MODEL']
 
+            logger.warning(f"DEBUG: Calling Ollama at {ollama_host} with model '{ollama_model}'")
+
             response = requests.post(
                 f"{ollama_host}/api/generate",
                 json={
@@ -257,6 +283,8 @@ Answer:"""
                 },
                 timeout=60
             )
+
+            logger.info(f"Ollama response status: {response.status_code}")
 
             if response.status_code == 200:
                 result = response.json()
@@ -276,17 +304,21 @@ Answer:"""
                     'context_used': context
                 }
             else:
-                logger.error(f"Ollama generation failed: {response.status_code}")
+                logger.error(
+                    f"Ollama generation failed: {response.status_code} - {response.text}"
+                )
                 return {
                     'success': False,
-                    'error': 'Failed to generate response'
+                    'error': f'Failed to generate response: Ollama returned {response.status_code}'
                 }
 
         except Exception as e:
+            import traceback
             logger.error(f"RAG response generation failed: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return {
                 'success': False,
-                'error': str(e)
+                'error': f'RAG error: {str(e)}'
             }
 
     def reindex_all_documents(self) -> Dict[str, Any]:

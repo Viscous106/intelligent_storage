@@ -12,6 +12,11 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file (override system vars)
+env_path = Path(__file__).resolve().parent.parent.parent / '.env'
+load_dotenv(dotenv_path=env_path, override=True)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -109,7 +114,7 @@ MONGODB_SETTINGS = {
 # Ollama Configuration
 OLLAMA_SETTINGS = {
     'HOST': os.environ.get('OLLAMA_HOST', 'http://localhost:11434'),
-    'MODEL': os.environ.get('OLLAMA_MODEL', 'llama3:latest'),
+    'MODEL': os.environ.get('OLLAMA_MODEL', 'gemma:2b'),  # Default to gemma:2b (installed)
 }
 
 
