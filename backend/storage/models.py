@@ -343,6 +343,16 @@ class JSONDataStore(models.Model):
     # User input
     user_comment = models.TextField(blank=True, null=True)
 
+    # Schema file reference (saved schema as .sql or .json)
+    schema_file = models.ForeignKey(
+        'MediaFile',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='json_schemas',
+        help_text="Generated schema file accessible in file browser"
+    )
+
     # Stats
     record_count = models.IntegerField(default=0)
 

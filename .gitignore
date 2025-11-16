@@ -12,3 +12,10 @@ nohup.out
 # MongoDB data and logs (IMPORTANT: Never commit database files)
 mongodb_data/
 mongodb_logs/
+
+# Python cache
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+__pycache__/

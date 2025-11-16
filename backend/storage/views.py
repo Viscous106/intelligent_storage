@@ -457,6 +457,18 @@ class JSONDataUploadView(APIView):
             else:
                 reasons_array = reasoning if isinstance(reasoning, list) else []
 
+            # Save schema as a file for user access
+            schema_file = None
+            try:
+                schema_file = self._save_schema_file(
+                    schema_display=schema_display,
+                    db_type=db_type,
+                    name=name,
+                    json_store=json_store
+                )
+            except Exception as e:
+                logger.warning(f"Failed to save schema file: {str(e)}")
+
             # Prepare response in the format frontend expects
             response_data = {
                 'success': True,
@@ -467,6 +479,7 @@ class JSONDataUploadView(APIView):
                 'reasons': reasons_array,  # Array of reasons
                 'metrics': metrics,
                 'schema': schema_display,
+                'schema_file_id': schema_file.id if schema_file else None,  # ID of saved schema file
                 # Include storage info for compatibility
                 'storage': JSONDataStoreSerializer(json_store).data,
                 'ai_analysis': ai_result,
@@ -509,6 +522,86 @@ class JSONDataUploadView(APIView):
                       any(isinstance(v, list) for v in item.values())
                       for item in obj if isinstance(item, dict))
         return False
+
+    def _save_schema_file(self, schema_display, db_type, name, json_store):
+        """Save generated schema as a file accessible in file browser."""
+        import os
+        import json as json_module
+        from datetime import datetime
+        from django.conf import settings
+        from .models import MediaFile
+
+        # Prepare schema content
+        if db_type == 'SQL':
+            # Save as .sql file
+            file_extension = '.sql'
+            content = f"""-- SQL Schema for: {name}
+-- Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+-- Database Type: PostgreSQL
+-- Table Name: {schema_display.get('table_name')}
+
+{schema_display.get('create_statement')}
+
+-- Column Definitions:
+"""
+            for col_name, col_type in schema_display.get('columns', {}).items():
+                content += f"-- {col_name}: {col_type}\n"
+
+        else:
+            # Save as .json file with NoSQL structure
+            file_extension = '.json'
+            schema_doc = {
+                'schema_name': name,
+                'generated_at': datetime.now().isoformat(),
+                'database_type': 'MongoDB (NoSQL)',
+                'collection_name': schema_display.get('collection_name'),
+                'document_structure': schema_display.get('document_structure'),
+                'sample_document': json_store.sample_data
+            }
+            content = json_module.dumps(schema_doc, indent=2)
+
+        # Generate filename
+        safe_name = name.lower().replace(' ', '_').replace('-', '_')
+        filename = f"{safe_name}_schema{file_extension}"
+
+        # Create directory structure
+        year = datetime.now().year
+        month = datetime.now().month
+        relative_dir = os.path.join('schemas', str(year), f'{month:02d}')
+        full_dir = os.path.join(settings.MEDIA_ROOT, relative_dir)
+        os.makedirs(full_dir, exist_ok=True)
+
+        # Save file
+        file_path = os.path.join(full_dir, filename)
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+
+        # Get file size
+        file_size = os.path.getsize(file_path)
+
+        # Create MediaFile record
+        media_file = MediaFile.objects.create(
+            original_name=filename,
+            file_path=file_path,
+            relative_path=os.path.join(relative_dir, filename),
+            file_size=file_size,
+            detected_type='documents',
+            mime_type='application/sql' if db_type == 'SQL' else 'application/json',
+            file_extension=file_extension,
+            storage_category='schemas',
+            storage_subcategory=db_type.lower(),
+            ai_category=f'{db_type} Schema',
+            ai_subcategory='Database Schema',
+            ai_description=f'Generated {db_type} schema for {name}',
+            ai_tags=['schema', db_type.lower(), 'database', 'generated']
+        )
+
+        # Update JSONDataStore with schema file reference
+        json_store.schema_file = media_file
+        json_store.save()
+
+        logger.info(f"Saved schema file: {filename} (ID: {media_file.id})")
+        return media_file
 
 
 class JSONDataViewSet(viewsets.ModelViewSet):
