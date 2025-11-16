@@ -72,7 +72,7 @@ The **Intelligent Multi-Modal Storage System** is a next-generation storage plat
 - 🔍 **Multi-Layer File Detection**: Magic bytes, MIME types, and extension analysis
 - 🤖 **AI Categorization**: Gemma/Llama3-powered content analysis for images, documents, and code
 - 📁 **Auto-Organization**: Hierarchical folder structure (type → subcategory → files)
-- 🖼️ **Image Analysis**: Vision model integration for visual content understanding
+- 🖼️ **Image Analysis**: Vision model integration for visual content understanding 
 - 📊 **File Preview**: Built-in preview system for 50+ file types
 - 🗑️ **Trash System**: Soft delete with restore capabilities
 
