@@ -54,7 +54,7 @@ The **Intelligent Multi-Modal Storage System** is a next-generation storage plat
 
 ### What Makes It Intelligent?
 
-- **AI-Powered Classification**: Automatically categorizes files using Llama3 and vision models
+- **AI-Powered Classification**: Automatically categorizes files using Gemma/Llama3 and vision models
 - **Smart Database Routing**: Analyzes JSON data structure to choose optimal storage (SQL vs NoSQL)
 - **Semantic Search**: Find documents by meaning, not just keywords, using vector embeddings
 - **RAG Integration**: Query your documents with context-aware AI responses and citations
@@ -69,7 +69,7 @@ The **Intelligent Multi-Modal Storage System** is a next-generation storage plat
 
 #### **1. Intelligent Media Management**
 - 🔍 **Multi-Layer File Detection**: Magic bytes, MIME types, and extension analysis
-- 🤖 **AI Categorization**: Llama3-powered content analysis for images, documents, and code
+- 🤖 **AI Categorization**: Gemma/Llama3-powered content analysis for images, documents, and code
 - 📁 **Auto-Organization**: Hierarchical folder structure (type → subcategory → files)
 - 🖼️ **Image Analysis**: Vision model integration for visual content understanding
 - 📊 **File Preview**: Built-in preview system for 50+ file types
@@ -89,7 +89,7 @@ The **Intelligent Multi-Modal Storage System** is a next-generation storage plat
 - 🎯 **Semantic Search**: Find relevant chunks by meaning with similarity scoring
 - 📚 **File Search Stores**: Gemini-style organized document containers
 - 📝 **Citation Tracking**: Automatic source attribution with grounding metadata
-- 💬 **Context-Aware Queries**: AI responses grounded in your documents
+- 💬 **Context-Aware Queries**: AI responses grounded in your documents using Gemma/Llama3
 
 #### **4. Advanced Search**
 - 🔎 **Fuzzy Search**: Trie-based autocomplete with typo tolerance
@@ -156,10 +156,10 @@ The **Intelligent Multi-Modal Storage System** is a next-generation storage plat
 │  PostgreSQL  │   │     MongoDB      │  │   Ollama     │  │   File    │
 │  (Relational)│   │   (Document)     │  │  (AI/LLM)    │  │  System   │
 │              │   │                  │  │              │  │           │
-│ • Users      │   │ • NoSQL JSON     │  │ • Llama3     │  │ • Media   │
-│ • MediaFiles │   │ • Collections    │  │ • Vision     │  │ • Schemas │
-│ • Chunks     │   │ • Documents      │  │ • Embeddings │  │ • Uploads │
-│ • Vectors    │   │                  │  │              │  │           │
+│ • Users      │   │ • NoSQL JSON     │  │ • Gemma:2b   │  │ • Media   │
+│ • MediaFiles │   │ • Collections    │  │ • Llama3     │  │ • Schemas │
+│ • Chunks     │   │ • Documents      │  │ • nomic-emb  │  │ • Uploads │
+│ • Vectors    │   │                  │  │ • Vision     │  │           │
 │ (pgvector)   │   │                  │  │              │  │           │
 └──────────────┘   └──────────────────┘  └──────────────┘  └───────────┘
 ```
@@ -187,7 +187,7 @@ The **Intelligent Multi-Modal Storage System** is a next-generation storage plat
       ▼
 ┌─────────────────┐       ┌──────────────┐
 │  AIAnalyzer     │──────▶│   Ollama     │
-└─────┬───────────┘       │   Llama3     │
+└─────┬───────────┘       │  Gemma/Llama3│
       │ 4. Classify       └──────────────┘
       ▼
 ┌─────────────────┐
@@ -223,7 +223,7 @@ The **Intelligent Multi-Modal Storage System** is a next-generation storage plat
       ▼
 ┌─────────────────┐       ┌──────────────┐
 │  JSONAnalyzer   │──────▶│   Ollama     │
-└─────┬───────────┘       │   Llama3     │
+└─────┬───────────┘       │  Gemma/Llama3│
       │ 3. Recommend DB   └──────────────┘
       ▼
 ┌─────────────────┐
@@ -282,7 +282,7 @@ The **Intelligent Multi-Modal Storage System** is a next-generation storage plat
       │ 4. Build Context
       ▼
 ┌─────────────────┐       ┌──────────────┐
-│    Ollama       │──────▶│   Llama3     │
+│    Ollama       │──────▶│ Gemma/Llama3 │
 │  RAG Prompt     │       │  Generate    │
 └─────┬───────────┘       └──────────────┘
       │ 5. Generate Response with Citations
@@ -329,9 +329,10 @@ djongo 1.3.6                   # MongoDB ORM for Django
 ### **AI & Machine Learning**
 ```
 Ollama 0.1.6                   # Local LLM runtime
-  • llama3:latest              # Text analysis & generation
-  • llama3.2-vision            # Image content analysis
-  • nomic-embed-text           # Text embeddings (768-dim)
+  • gemma:2b                   # Text analysis & generation (default)
+  • llama3:latest              # Alternative text model (optional)
+  • llama3.2-vision            # Image content analysis (optional)
+  • nomic-embed-text           # Text embeddings (768-dim) - REQUIRED for RAG
 ```
 
 ### **File Processing**
@@ -427,9 +428,10 @@ sudo systemctl enable ollama
 sudo pacman -S python python-pip file
 
 # Pull AI models
-ollama pull llama3:latest
-ollama pull llama3.2-vision
-ollama pull nomic-embed-text
+ollama pull gemma:2b              # Required - default text model
+ollama pull nomic-embed-text      # Required - for embeddings/RAG
+ollama pull llama3:latest         # Optional - alternative text model
+ollama pull llama3.2-vision       # Optional - for image analysis
 ```
 
 </details>
@@ -461,9 +463,10 @@ curl -fsSL https://ollama.com/install.sh | sh
 sudo apt install python3 python3-pip python3-venv libmagic1
 
 # Pull AI models
-ollama pull llama3:latest
-ollama pull llama3.2-vision
-ollama pull nomic-embed-text
+ollama pull gemma:2b              # Required - default text model
+ollama pull nomic-embed-text      # Required - for embeddings/RAG
+ollama pull llama3:latest         # Optional - alternative text model
+ollama pull llama3.2-vision       # Optional - for image analysis
 ```
 
 </details>
@@ -492,9 +495,10 @@ brew services start ollama
 brew install python@3.11 libmagic
 
 # Pull AI models
-ollama pull llama3:latest
-ollama pull llama3.2-vision
-ollama pull nomic-embed-text
+ollama pull gemma:2b              # Required - default text model
+ollama pull nomic-embed-text      # Required - for embeddings/RAG
+ollama pull llama3:latest         # Optional - alternative text model
+ollama pull llama3.2-vision       # Optional - for image analysis
 ```
 
 </details>
@@ -510,9 +514,10 @@ ollama pull nomic-embed-text
 
 ```powershell
 # After installation, pull AI models
-ollama pull llama3:latest
-ollama pull llama3.2-vision
-ollama pull nomic-embed-text
+ollama pull gemma:2b              # Required - default text model
+ollama pull nomic-embed-text      # Required - for embeddings/RAG
+ollama pull llama3:latest         # Optional - alternative text model
+ollama pull llama3.2-vision       # Optional - for image analysis
 ```
 
 </details>
@@ -820,8 +825,8 @@ intelligent_storage/
 | Component | Purpose | Technologies |
 |-----------|---------|--------------|
 | **file_detector.py** | Multi-layer file type detection | python-magic, MIME types, extensions |
-| **ai_analyzer.py** | AI-powered content analysis | Ollama, Llama3, Llama3.2-vision |
-| **rag_service.py** | Semantic search and RAG queries | pgvector, embeddings, Llama3 |
+| **ai_analyzer.py** | AI-powered content analysis | Ollama, Gemma:2b, Llama3, Llama3.2-vision |
+| **rag_service.py** | Semantic search and RAG queries | pgvector, nomic-embed-text, Gemma/Llama3 |
 | **chunking_service.py** | Document chunking strategies | Auto, semantic, whitespace, fixed |
 | **smart_db_selector.py** | Intelligent database selection | JSON analysis, depth calculation |
 | **fuzzy_search_views.py** | Typo-tolerant search | Trie data structure, edit distance |
@@ -998,7 +1003,7 @@ Response: 200 OK
     },
     "ollama": {
       "status": "connected",
-      "models": ["llama3:latest", "llama3.2-vision", "nomic-embed-text"]
+      "models": ["gemma:2b", "nomic-embed-text", "llama3:latest", "llama3.2-vision"]
     }
   }
 }
@@ -1434,7 +1439,7 @@ Response: 200 OK
     "generation_time_ms": 2340,
     "total_time_ms": 2485,
     "tokens_used": 1250,
-    "model": "llama3:latest"
+    "model": "gemma:2b"
   }
 }
 ```
@@ -1841,9 +1846,9 @@ MONGODB_DB=intelligent_storage_nosql
 
 # Ollama Configuration
 OLLAMA_HOST=http://localhost:11434
-OLLAMA_MODEL=llama3:latest
-OLLAMA_VISION_MODEL=llama3.2-vision
-OLLAMA_EMBEDDING_MODEL=nomic-embed-text
+OLLAMA_MODEL=gemma:2b                    # Default text model
+OLLAMA_VISION_MODEL=llama3.2-vision      # Optional vision model
+OLLAMA_EMBEDDING_MODEL=nomic-embed-text  # Required for RAG/embeddings
 
 # Django Configuration
 DJANGO_SECRET_KEY=your-very-long-secret-key-change-this-in-production
@@ -2143,10 +2148,11 @@ ollama serve  # Manual start
 
 # Verify models are downloaded
 ollama list
-# If missing:
-ollama pull llama3:latest
-ollama pull llama3.2-vision
-ollama pull nomic-embed-text
+# If missing (pull required models):
+ollama pull gemma:2b              # Required
+ollama pull nomic-embed-text      # Required
+ollama pull llama3:latest         # Optional
+ollama pull llama3.2-vision       # Optional
 ```
 
 #### 2. **PostgreSQL Connection Refused**
@@ -2262,8 +2268,8 @@ LOGGING = {
 | Operation | Average Time | Notes |
 |-----------|--------------|-------|
 | File upload (10MB) | ~150ms | Excluding AI analysis |
-| AI categorization | ~800ms | Using Llama3 |
-| Image analysis | ~1.2s | Using Llama3.2-vision |
+| AI categorization | ~800ms | Using Gemma:2b (or Llama3) |
+| Image analysis | ~1.2s | Using Llama3.2-vision (if available) |
 | JSON upload (1000 records) | ~300ms | SQL insertion |
 | Document indexing (50 pages) | ~3.5s | Chunking + embeddings |
 | Semantic search | ~100ms | Vector similarity with pgvector |
@@ -2438,7 +2444,9 @@ Built with:
 - **PostgreSQL & pgvector** - Relational database with vector search
 - **MongoDB** - NoSQL document database
 - **Ollama** - Local LLM runtime
-- **Meta's Llama3** - Language and vision models
+- **Google's Gemma 2B** - Default language model
+- **Meta's Llama3** - Alternative language and vision models
+- **Nomic Embed Text** - Text embedding model (768-dim)
 - **python-magic** - File type detection
 - **Pillow** - Image processing
 

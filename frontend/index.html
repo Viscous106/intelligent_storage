@@ -407,6 +407,28 @@
     <!-- Toast Notifications -->
     <div id="toastContainer" class="toast-container"></div>
 
-    <script src="app.js"></script>
+    <!-- Preview Modal -->
+    <div id="previewModal" class="preview-modal" style="display: none;">
+        <div class="preview-modal-overlay" onclick="closePreviewModal()"></div>
+        <div class="preview-modal-content">
+            <div class="preview-modal-header">
+                <h3 id="previewFileName">File Preview</h3>
+                <button class="preview-modal-close" onclick="closePreviewModal()">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="preview-modal-body" id="previewContent">
+                <!-- Preview content will be inserted here -->
+            </div>
+            <div class="preview-modal-footer">
+                <button class="btn-secondary" onclick="closePreviewModal()">Close</button>
+                <a id="previewDownloadBtn" href="#" class="btn-primary" download>Download</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js?v=20251116"></script>
 </body>
 </html>

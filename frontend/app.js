@@ -406,9 +406,9 @@ function displaySearchResults(data) {
                     ).join('') : ''}
                     <span class="badge">${formatFileSize(result.size)}</span>
                     ${result.id ? `
-                        <a href="http://localhost:8000/files/api/preview/${result.id}/" target="_blank" class="btn-text">
+                        <button onclick="openPreviewModal(${result.id})" class="btn-text" style="background: none; border: none; cursor: pointer; color: var(--primary-color);">
                             Preview
-                        </a>
+                        </button>
                         <a href="http://localhost:8000/files/api/download/${result.id}/" class="btn-text">
                             Download
                         </a>
@@ -977,6 +977,218 @@ document.getElementById('healthCheckBtn').addEventListener('click', async () => 
     } catch (error) {
         hideLoading();
         showToast('Error', 'Health check failed', 'error');
+    }
+});
+
+// ============================================
+// File Preview Modal
+// ============================================
+
+async function openPreviewModal(fileId) {
+    const modal = document.getElementById('previewModal');
+    const fileNameEl = document.getElementById('previewFileName');
+    const contentEl = document.getElementById('previewContent');
+    const downloadBtn = document.getElementById('previewDownloadBtn');
+
+    // Show modal with loading state
+    modal.style.display = 'flex';
+    contentEl.innerHTML = '<div style="text-align: center; padding: 40px;"><div class="loading-spinner"></div><p>Loading preview...</p></div>';
+
+    try {
+        // Fetch preview data from API
+        const response = await fetch(`http://localhost:8000/files/api/preview/${fileId}/`);
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Failed to load preview');
+        }
+
+        // Update file name and download link
+        fileNameEl.textContent = data.filename;
+        downloadBtn.href = `http://localhost:8000${data.download_url}`;
+        downloadBtn.download = data.filename;
+
+        // Render preview based on file type
+        contentEl.innerHTML = renderPreviewContent(data);
+
+    } catch (error) {
+        console.error('Preview error:', error);
+        contentEl.innerHTML = `
+            <div class="preview-error">
+                <div class="preview-error-icon">⚠️</div>
+                <div class="preview-error-message">Failed to load preview</div>
+                <p>${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+function renderPreviewContent(data) {
+    const previewType = data.preview_type;
+
+    // Image preview
+    if (previewType === 'image') {
+        return `
+            <div style="text-align: center;">
+                <img src="http://localhost:8000${data.preview_url}" alt="${data.filename}" class="preview-image" />
+            </div>
+            <div class="preview-file-info" style="margin-top: 20px;">
+                <div class="preview-file-info-row">
+                    <span class="preview-file-info-label">Size:</span>
+                    <span class="preview-file-info-value">${data.file_size_human}</span>
+                </div>
+                <div class="preview-file-info-row">
+                    <span class="preview-file-info-label">Type:</span>
+                    <span class="preview-file-info-value">${data.mime_type}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    // Video preview
+    if (previewType === 'video') {
+        return `
+            <video controls class="preview-video">
+                <source src="http://localhost:8000${data.stream_url}" type="${data.mime_type}">
+                Your browser does not support the video tag.
+            </video>
+            <div class="preview-file-info" style="margin-top: 20px;">
+                <div class="preview-file-info-row">
+                    <span class="preview-file-info-label">Size:</span>
+                    <span class="preview-file-info-value">${data.file_size_human}</span>
+                </div>
+                <div class="preview-file-info-row">
+                    <span class="preview-file-info-label">Type:</span>
+                    <span class="preview-file-info-value">${data.mime_type}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    // Audio preview
+    if (previewType === 'audio') {
+        return `
+            <div style="text-align: center; padding: 40px 0;">
+                <div style="font-size: 64px; margin-bottom: 20px;">🎵</div>
+                <audio controls class="preview-audio" style="width: 100%;">
+                    <source src="http://localhost:8000${data.stream_url}" type="${data.mime_type}">
+                    Your browser does not support the audio tag.
+                </audio>
+            </div>
+            <div class="preview-file-info">
+                <div class="preview-file-info-row">
+                    <span class="preview-file-info-label">Size:</span>
+                    <span class="preview-file-info-value">${data.file_size_human}</span>
+                </div>
+                <div class="preview-file-info-row">
+                    <span class="preview-file-info-label">Type:</span>
+                    <span class="preview-file-info-value">${data.mime_type}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    // PDF preview
+    if (previewType === 'pdf') {
+        return `
+            <div class="preview-pdf-container">
+                <iframe src="http://localhost:8000${data.pdf_url}" type="application/pdf"></iframe>
+            </div>
+        `;
+    }
+
+    // Code/Text preview
+    if ((previewType === 'code' || previewType === 'text') && data.content) {
+        return `
+            <div class="preview-code">
+                <div class="preview-code-header">
+                    <span class="preview-code-language">${data.language || 'text'}</span>
+                    <span class="preview-code-stats">${data.lines} lines • ${data.file_size_human}</span>
+                </div>
+                <pre><code>${escapeHtml(data.content)}</code></pre>
+            </div>
+        `;
+    }
+
+    // JSON preview
+    if (previewType === 'json' && data.content) {
+        return `
+            <div class="preview-code">
+                <div class="preview-code-header">
+                    <span class="preview-code-language">JSON</span>
+                    <span class="preview-code-stats">${data.file_size_human}</span>
+                </div>
+                <pre><code>${escapeHtml(data.content)}</code></pre>
+            </div>
+        `;
+    }
+
+    // CSV preview
+    if (previewType === 'csv' && data.csv_data) {
+        const csv = data.csv_data;
+        return `
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                    <thead>
+                        <tr>
+                            ${csv.headers.map(h => `<th style="border: 1px solid var(--border-primary); padding: 8px; background: var(--bg-secondary);">${escapeHtml(h)}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${csv.rows.map(row => `
+                            <tr>
+                                ${row.map(cell => `<td style="border: 1px solid var(--border-primary); padding: 8px;">${escapeHtml(cell)}</td>`).join('')}
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                ${csv.preview ? `<p style="margin-top: 12px; color: var(--text-secondary); font-size: 14px;">Showing first ${csv.rows.length} of ${csv.total_rows} rows</p>` : ''}
+            </div>
+        `;
+    }
+
+    // Default/unsupported files
+    return `
+        <div class="preview-message">
+            <div class="preview-message-icon">📄</div>
+            <div class="preview-message-title">${data.message || 'Preview not available'}</div>
+            <p class="preview-message-text">This file type cannot be previewed. Click download to view the file.</p>
+            <div class="preview-file-info" style="margin-top: 20px; max-width: 500px; margin-left: auto; margin-right: auto;">
+                <div class="preview-file-info-row">
+                    <span class="preview-file-info-label">File:</span>
+                    <span class="preview-file-info-value">${data.filename}</span>
+                </div>
+                <div class="preview-file-info-row">
+                    <span class="preview-file-info-label">Size:</span>
+                    <span class="preview-file-info-value">${data.file_size_human}</span>
+                </div>
+                <div class="preview-file-info-row">
+                    <span class="preview-file-info-label">Type:</span>
+                    <span class="preview-file-info-value">${data.mime_type}</span>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function closePreviewModal() {
+    const modal = document.getElementById('previewModal');
+    modal.style.display = 'none';
+
+    // Clear content
+    document.getElementById('previewContent').innerHTML = '';
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Close modal on Escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closePreviewModal();
     }
 });
 
