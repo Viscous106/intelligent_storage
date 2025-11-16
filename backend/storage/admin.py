@@ -1,5 +1,5 @@
 """
-Django Admin Configuration for Intelligent Storage System.
+Django Admin Configuration for Intelligent Storage System.(Work in Progress)
 Provides comprehensive admin interface for all models with advanced features.
 """
 
