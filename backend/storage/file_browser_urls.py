@@ -18,6 +18,7 @@ urlpatterns = [
     path('api/stats/', file_browser_views.folder_stats_api, name='stats_api'),
     path('api/download/<int:file_id>/', file_browser_views.download_file, name='download'),
     path('api/preview/<int:file_id>/', file_browser_views.preview_file, name='preview'),
+    path('api/preview/content/<int:file_id>/', file_browser_views.preview_file_content, name='preview_content'),
 
     # Trash bin operations
     path('api/delete/<int:file_id>/', file_browser_views.delete_file, name='delete'),

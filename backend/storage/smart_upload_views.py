@@ -709,3 +709,261 @@ def get_document_schema(request, admin_id):
     except Exception as e:
         logger.error(f"Schema retrieval error: {e}", exc_info=True)
         return JsonResponse({'error': f'Failed to get schema: {str(e)}'}, status=500)
+
+
+# ============================================================================
+# Schema Retrieval Endpoints (NEW)
+# ============================================================================
+
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+@require_admin
+def retrieve_schemas(request, admin_id):
+    """
+    Retrieve schema files with flexible filtering options.
+
+    Supports both structured and natural language queries.
+
+    GET/POST /api/smart/schemas/retrieve
+    Header: Authorization: Bearer <token>
+
+    Query Parameters (for GET):
+        - database_type: 'sql', 'nosql', or 'all' (default: 'all')
+        - start_date: Start date in YYYY-MM-DD format
+        - end_date: End date in YYYY-MM-DD format
+        - name_pattern: Pattern to search in schema names
+        - tags: Comma-separated list of tags
+        - limit: Max number of results (default: 20, max: 100)
+
+    Body (for POST with natural language query):
+    {
+        "query": "show me all SQL schemas from last week"
+    }
+
+    OR (for POST with structured filters):
+    {
+        "database_type": "sql",
+        "date_range": {
+            "start_date": "2025-11-01",
+            "end_date": "2025-11-16"
+        },
+        "name_pattern": "user",
+        "tags": ["database", "schema"],
+        "limit": 20
+    }
+
+    Response:
+    {
+        "success": true,
+        "count": 5,
+        "total_available": 15,
+        "schemas": [
+            {
+                "id": 123,
+                "filename": "user_schema.sql",
+                "database_type": "SQL",
+                "file_path": "schemas/2025/11/user_schema.sql",
+                "file_size": 2048,
+                "created_at": "2025-11-16T10:30:00",
+                "description": "Generated SQL schema for user_data",
+                "tags": ["schema", "sql", "database"],
+                "download_url": "/api/smart/schemas/download/123",
+                "json_store": {
+                    "name": "user_data",
+                    "table_name": "user_data_table",
+                    "record_count": 1000
+                }
+            }
+        ],
+        "filters_applied": {...}
+    }
+    """
+    try:
+        from .schema_retrieval_service import get_schema_retrieval_service
+
+        service = get_schema_retrieval_service()
+
+        if request.method == 'POST':
+            # Handle POST request with JSON body
+            request_data = json.loads(request.body)
+
+            # Check if it's a natural language query
+            if 'query' in request_data:
+                natural_query = request_data['query']
+                result = service.retrieve_schemas_by_query(natural_query)
+            else:
+                # Structured query
+                date_range = request_data.get('date_range', {})
+                result = service.retrieve_schemas(
+                    database_type=request_data.get('database_type', 'all'),
+                    start_date=date_range.get('start_date'),
+                    end_date=date_range.get('end_date'),
+                    name_pattern=request_data.get('name_pattern'),
+                    tags=request_data.get('tags'),
+                    limit=min(int(request_data.get('limit', 20)), 100)
+                )
+        else:
+            # Handle GET request with query parameters
+            database_type = request.GET.get('database_type', 'all')
+            start_date = request.GET.get('start_date')
+            end_date = request.GET.get('end_date')
+            name_pattern = request.GET.get('name_pattern')
+            tags = request.GET.get('tags', '').split(',') if request.GET.get('tags') else None
+            limit = min(int(request.GET.get('limit', 20)), 100)
+
+            result = service.retrieve_schemas(
+                database_type=database_type,
+                start_date=start_date,
+                end_date=end_date,
+                name_pattern=name_pattern,
+                tags=tags,
+                limit=limit
+            )
+
+        if result['success']:
+            return JsonResponse(result)
+        else:
+            return JsonResponse(result, status=400)
+
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON in request body'
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Schema retrieval error: {e}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+@require_admin
+def download_schema(request, schema_id, admin_id):
+    """
+    Download a specific schema file.
+
+    GET /api/smart/schemas/download/<schema_id>
+    Header: Authorization: Bearer <token>
+
+    Returns: Schema file content with appropriate content type
+    """
+    try:
+        from .schema_retrieval_service import get_schema_retrieval_service
+        from django.http import HttpResponse
+
+        service = get_schema_retrieval_service()
+        result = service.get_schema_content(int(schema_id))
+
+        if result['success']:
+            # Determine content type
+            content_type = result['mime_type']
+
+            response = HttpResponse(
+                result['content'],
+                content_type=content_type
+            )
+            response['Content-Disposition'] = f'attachment; filename="{result["filename"]}"'
+
+            logger.info(f"Schema {schema_id} downloaded by {admin_id}")
+
+            return response
+        else:
+            return JsonResponse(result, status=404)
+
+    except ValueError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid schema ID'
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Schema download error: {e}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+@require_admin
+def view_schema(request, schema_id, admin_id):
+    """
+    View schema content (without downloading).
+
+    GET /api/smart/schemas/view/<schema_id>
+    Header: Authorization: Bearer <token>
+
+    Response:
+    {
+        "success": true,
+        "schema_id": 123,
+        "filename": "user_schema.sql",
+        "database_type": "SQL",
+        "content": "CREATE TABLE...",
+        "created_at": "2025-11-16T10:30:00"
+    }
+    """
+    try:
+        from .schema_retrieval_service import get_schema_retrieval_service
+
+        service = get_schema_retrieval_service()
+        result = service.get_schema_content(int(schema_id))
+
+        if result['success']:
+            return JsonResponse(result)
+        else:
+            return JsonResponse(result, status=404)
+
+    except ValueError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid schema ID'
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Schema view error: {e}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+@require_admin
+def schema_statistics(request, admin_id):
+    """
+    Get statistics about stored schemas.
+
+    GET /api/smart/schemas/stats
+    Header: Authorization: Bearer <token>
+
+    Response:
+    {
+        "success": true,
+        "statistics": {
+            "total_schemas": 25,
+            "sql_schemas": 15,
+            "nosql_schemas": 10,
+            "total_size_bytes": 51200,
+            "oldest_schema": "2025-10-01T12:00:00",
+            "newest_schema": "2025-11-16T10:30:00"
+        }
+    }
+    """
+    try:
+        from .schema_retrieval_service import get_schema_retrieval_service
+
+        service = get_schema_retrieval_service()
+        result = service.get_schema_statistics()
+
+        return JsonResponse(result)
+
+    except Exception as e:
+        logger.error(f"Schema statistics error: {e}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)

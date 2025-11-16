@@ -52,4 +52,10 @@ urlpatterns = [
     path('query/json', adv_views.advanced_query_json, name='advanced_query_json'),
     path('search/json', adv_views.search_json, name='search_json'),
     path('aggregate/json', adv_views.aggregate_json, name='aggregate_json'),
+
+    # Schema Retrieval Endpoints (NEW)
+    path('schemas/retrieve', views.retrieve_schemas, name='retrieve_schemas'),
+    path('schemas/download/<int:schema_id>', views.download_schema, name='download_schema'),
+    path('schemas/view/<int:schema_id>', views.view_schema, name='view_schema'),
+    path('schemas/stats', views.schema_statistics, name='schema_statistics'),
 ]
