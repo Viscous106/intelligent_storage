@@ -173,6 +173,7 @@ def folder_stats_api(request):
     })
 
 
+@csrf_exempt
 def download_file(request, file_id):
     """Download a file by ID."""
     try:
@@ -188,12 +189,17 @@ def download_file(request, file_id):
         )
         response['Content-Disposition'] = f'attachment; filename="{media_file.original_name}"'
 
+        # Add CORS headers
+        response['Access-Control-Allow-Origin'] = '*'
+        response['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+
         return response
 
     except MediaFile.DoesNotExist:
         raise Http404('File not found in database')
 
 
+@csrf_exempt
 def preview_file(request, file_id):
     """
     Get rich preview data for a file with support for multiple formats.
@@ -231,7 +237,7 @@ def preview_file(request, file_id):
             'file_size_human': _human_readable_size(media_file.file_size),
             'uploaded_at': media_file.uploaded_at.isoformat(),
             'category': media_file.detected_type,
-            'download_url': f'/api/file_browser/api/download/{file_id}/'
+            'download_url': f'/files/api/download/{file_id}/'
         }
 
         # Determine preview type and add type-specific data
@@ -273,23 +279,23 @@ def preview_file(request, file_id):
 
         elif preview_type == 'image':
             # Images
-            preview_data['preview_url'] = f'/api/file_browser/api/preview/content/{file_id}/'
+            preview_data['preview_url'] = f'/files/api/preview/content/{file_id}/'
             preview_data['can_preview'] = True
 
         elif preview_type == 'video':
             # Videos
-            preview_data['stream_url'] = f'/api/file_browser/api/preview/content/{file_id}/'
+            preview_data['stream_url'] = f'/files/api/preview/content/{file_id}/'
             preview_data['supports_streaming'] = extension in ['.mp4', '.webm', '.ogg']
             preview_data['can_preview'] = True
 
         elif preview_type == 'audio':
             # Audio
-            preview_data['stream_url'] = f'/api/file_browser/api/preview/content/{file_id}/'
+            preview_data['stream_url'] = f'/files/api/preview/content/{file_id}/'
             preview_data['can_preview'] = True
 
         elif preview_type == 'pdf':
             # PDFs
-            preview_data['pdf_url'] = f'/api/file_browser/api/preview/content/{file_id}/'
+            preview_data['pdf_url'] = f'/files/api/preview/content/{file_id}/'
             preview_data['can_preview'] = True
 
         elif preview_type == 'json':
@@ -437,6 +443,7 @@ def restore_file(request, file_id):
             'error': str(e)
         }, status=500)
 
+@csrf_exempt
 def preview_file_content(request, file_id):
     """
     Stream file content for inline display/playback.
@@ -454,6 +461,14 @@ def preview_file_content(request, file_id):
             content_type=media_file.mime_type
         )
         response['Content-Disposition'] = f'inline; filename="{media_file.original_name}"'
+
+        # Add CORS headers to allow cross-origin access
+        response['Access-Control-Allow-Origin'] = '*'
+        response['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+        response['Access-Control-Allow-Headers'] = 'Content-Type'
+
+        # Remove X-Frame-Options to allow iframe embedding
+        response['X-Frame-Options'] = 'SAMEORIGIN'
 
         return response
 
